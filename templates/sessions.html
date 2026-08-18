@@ -1,0 +1,2786 @@
+{% extends "base.html" %}
+{% from 'partials/toggle.html' import toggle_widget %}
+
+{% block content %}
+<style>
+footer { display: none; }
+/* Dark mode */
+html.dark .recap-prose { color: #cbd5e1; }
+html.dark .recap-prose th, html.dark .recap-prose td { border-color: #334155; }
+html.dark .recap-prose th { background: #1e293b; color: #f1f5f9; }
+html.dark .recap-prose tr:nth-child(even) { background: #0f172a; }
+html.dark .recap-prose tr:hover { background: #334155; }
+html.dark .recap-prose h1, html.dark .recap-prose h2, html.dark .recap-prose h3, html.dark .recap-prose h4, html.dark .recap-prose h5, html.dark .recap-prose h6 { color: #f1f5f9; }
+html.dark .recap-prose blockquote { border-left-color: #475569; color: #94a3b8; }
+html.dark .recap-prose code { background: #1e293b; color: #e2e8f0; }
+html.dark .recap-prose pre { background: #1e293b; }
+/* Dark mode: session list */
+html.dark #session-list .hover\\:bg-gray-50:hover { background: #374151; }
+html.dark #session-list .bg-indigo-50 { background: #1e1b4b; }
+html.dark #session-list .text-gray-800 { color: #f3f4f6; }
+html.dark #session-list .text-gray-500 { color: #d1d5db; }
+html.dark #session-list .text-gray-400 { color: #cbd5e1; }
+html.dark #session-list .text-gray-300 { color: #94a3b8; }
+html.dark #session-list .text-indigo-400 { color: #818cf8; }
+html.dark #session-list .border-l-transparent { border-color: #374151; }
+html.dark #session-list .bg-red-400 { background: #f87171; }
+html.dark #mobile-dropdown { background: #1f2937; border-color: #374151; }
+html.dark #mobile-dropdown .hover\\:bg-gray-50:hover { background: #374151; }
+html.dark #mobile-dropdown .text-gray-800 { color: #f3f4f6; }
+html.dark #mobile-dropdown .text-gray-400 { color: #9ca3af; }
+html.dark #mobile-dropdown .border-b { border-color: #374151; }
+/* Dark mode: Agent State badges (match agent_detail.html #agent-state-card colours) */
+html.dark #agent-state-content .bg-green-100 { background: #052e16 !important; color: #86efac !important; }
+html.dark #agent-state-content .bg-amber-100 { background: #451a03 !important; color: #fcd34d !important; }
+html.dark #agent-state-content .bg-blue-100 { background: #172554 !important; color: #93c5fd !important; }
+html.dark #agent-state-content .bg-purple-100 { background: #2e1065 !important; color: #c4b5fd !important; }
+html.dark #agent-state-content .bg-gray-100 { background: #374151 !important; color: #e5e7eb !important; }
+html.dark #agent-state-content .text-gray-500 { color: #9ca3af !important; }
+html.dark #agent-state-content .text-gray-700 { color: #e5e7eb !important; }
+html.dark #agent-state-content .text-gray-400 { color: #6b7280 !important; }
+html.dark #agent-state-content .text-gray-600 { color: #d1d5db !important; }
+html.dark #agent-state-content .border-gray-100 { border-color: #374151 !important; }
+html.dark #mobile-agent-state-content .bg-green-100 { background: #052e16 !important; color: #86efac !important; }
+html.dark #mobile-agent-state-content .bg-amber-100 { background: #451a03 !important; color: #fcd34d !important; }
+html.dark #mobile-agent-state-content .bg-blue-100 { background: #172554 !important; color: #93c5fd !important; }
+html.dark #mobile-agent-state-content .bg-purple-100 { background: #2e1065 !important; color: #c4b5fd !important; }
+html.dark #mobile-agent-state-content .bg-gray-100 { background: #374151 !important; color: #e5e7eb !important; }
+html.dark #mobile-agent-state-content .text-gray-500 { color: #9ca3af !important; }
+html.dark #mobile-agent-state-content .text-gray-700 { color: #e5e7eb !important; }
+html.dark #mobile-agent-state-content .text-gray-400 { color: #6b7280 !important; }
+html.dark #mobile-agent-state-content .text-gray-600 { color: #d1d5db !important; }
+html.dark #mobile-agent-state-content .border-gray-100 { border-color: #374151 !important; }
+/* Delete button on session list item */
+#session-list .session-item .session-delete-btn { opacity: 0; transition: opacity 0.15s, color 0.15s; }
+#session-list .session-item:hover .session-delete-btn { opacity: 1; }
+#session-list .session-item .session-delete-btn:hover { color: #ef4444 !important; }
+/* Active session indicator — dark green gradient left-to-transparent */
+#session-list .session-item.session-active {
+    background: linear-gradient(to right, rgba(6, 78, 59, 0.28) 0%, rgba(6, 78, 59, 0.12) 40%, transparent 100%);
+}
+html.dark #session-list .session-item.session-active {
+    background: linear-gradient(to right, rgba(6, 78, 59, 0.35) 0%, rgba(6, 78, 59, 0.15) 40%, transparent 100%);
+}
+/* User ID color coding by type */
+.user-id-system { color: #97989F; }
+.user-id-agent  { color: #97989F; }
+.user-id-human  { color: #15803d; }
+/* Plan file modal */
+#plan-modal-backdrop {
+    z-index: 100;
+    transition: opacity 0.2s ease;
+}
+#plan-modal-backdrop.hidden { opacity: 0; pointer-events: none; }
+#plan-modal-backdrop:not(.hidden) { opacity: 1; }
+#plan-modal {
+    max-width: 42rem;
+    max-height: 80vh;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+#plan-modal.hidden { opacity: 0; pointer-events: none; }
+#plan-modal:not(.hidden) { opacity: 1; }
+#plan-modal-content .recap-prose { font-size: 0.875rem; line-height: 1.65; }
+/* Dark mode modal */
+html.dark #plan-modal { background: #1f2937; }
+html.dark #plan-modal .recap-prose { color: #cbd5e1; }
+html.dark #plan-modal .recap-prose th, html.dark #plan-modal .recap-prose td { border-color: #334155; }
+html.dark #plan-modal .recap-prose th { background: #1e293b; color: #f1f5f9; }
+html.dark #plan-modal .recap-prose tr:nth-child(even) { background: #0f172a; }
+html.dark #plan-modal .recap-prose tr:hover { background: #334155; }
+html.dark #plan-modal .recap-prose h1, html.dark #plan-modal .recap-prose h2,
+html.dark #plan-modal .recap-prose h3, html.dark #plan-modal .recap-prose h4,
+html.dark #plan-modal .recap-prose h5, html.dark #plan-modal .recap-prose h6 { color: #f1f5f9; }
+html.dark #plan-modal .recap-prose blockquote { border-left-color: #475569; color: #94a3b8; }
+html.dark #plan-modal .recap-prose code { background: #1e293b; color: #e2e8f0; }
+html.dark #plan-modal .recap-prose pre { background: #1e293b; }
+/* Prevent pre/code overflow in right sidebar panels */
+#agent-state-content pre,
+#agent-state-content code,
+#mobile-agent-state-content pre,
+#mobile-agent-state-content code,
+#SessionStateContent pre,
+#SessionStateContent code,
+#mobile-SessionStateContent pre,
+#mobile-SessionStateContent code {
+    white-space: pre-wrap !important;
+    word-break: break-all;
+    overflow-wrap: break-word;
+}
+</style>
+<div class="sessions-page flex flex-col h-[calc(100vh-3.5rem)]">
+
+    <!-- Tab bar -->
+    <div class="flex border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex-shrink-0">
+        <button id="tab-chat-btn" onclick="switchTab('chat')"
+                class="px-5 py-2.5 text-sm font-medium border-b-2 border-indigo-500 text-indigo-600 transition-colors">
+            Chat
+        </button>
+        <button id="tab-settings-btn" onclick="switchTab('settings')"
+                class="px-5 py-2.5 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition-colors">
+            Settings
+        </button>
+    </div>
+
+    <!-- ==================== Chat Tab ==================== -->
+    <div id="tab-chat" class="flex-1 flex flex-col overflow-hidden">
+
+    <!-- Mobile: autocomplete search bar -->
+    <div class="md:hidden p-3 bg-white border-b border-gray-200 relative dark:bg-gray-800">
+        <input type="search" id="mobile-search" name="mobile_search_filter" placeholder="Search session (agent or user ID)..."
+               class="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/10"
+               oninput="onMobileSearch(this.value)" onfocus="this.removeAttribute('readonly');showMobileDropdown()" autocomplete="off" readonly>
+        <div id="mobile-dropdown" class="hidden absolute left-3 right-3 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-64 overflow-y-auto z-50"></div>
+    </div>
+
+    <div class="flex flex-1 overflow-hidden">
+        <!-- Desktop: session sidebar -->
+        <div id="sidebar" class="hidden md:flex flex-col w-[320px] border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex-shrink-0">
+            <div id="SidebarSearch" class="p-3 border-b border-gray-100 dark:border-gray-600">
+                <input type="search" id="sidebar-search" name="sidebar_search_filter" placeholder="Search agent or user ID..."
+                       class="w-full p-2 border border-gray-200 rounded-lg text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/10"
+                       oninput="debouncedLoadSessions(this.value)" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')">
+            </div>
+            <div id="session-list" class="flex-1 overflow-y-auto"></div>
+        </div>
+
+        <!-- Chat room -->
+        <div id="chat-room" class="flex-1 flex flex-col bg-gray-50 dark:bg-gray-800 min-w-0">
+            <!-- Chat header -->
+            <div id="chat-header" class="hidden p-3 bg-white dark:bg-gray-800 border-b border-gray-200 flex-shrink-0 dark:border-gray-600">
+                <div class="flex items-center justify-between gap-2 flex-wrap">
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span id="hdr-agent" class="font-semibold text-gray-800 dark:text-gray-400 text-sm truncate"></span>
+                            <span id="hdr-channel-badge" class="text-xs px-2 py-0.5 rounded font-medium"></span>
+                        </div>
+                        <div class="text-xs text-gray-400 mt-0.5">
+                            User: <span id="hdr-user" class="text-gray-600 dark:text-gray-400"></span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3 flex-shrink-0">
+                        <label class="flex items-center gap-2 cursor-pointer select-none">
+                            <span class="text-xs text-gray-500">B</span>
+                            {{ toggle_widget(id='bot-toggle', onchange='toggleBot(this.checked)') }}
+                        </label>
+                        <button id="stop-agent-btn" onclick="stopAgent()" class="hidden text-xs text-red-500 hover:text-red-700 font-medium px-2 py-1 rounded border border-red-200 bg-red-50 hover:bg-red-100 transition-colors" title="Stop agent">
+                            Stop
+                        </button>
+                        <button id="mobile-summary-btn" onclick="toggleSummary()" class="text-indigo-500 hover:text-indigo-700 hidden" title="View summary">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        </button>
+                        <span class="w-px h-4 bg-gray-200 self-center"></span>
+                        <button onclick="toggleSessionChatFullscreen()" id="session-chat-fullscreen-btn" title="Fullscreen" class="ml-auto text-gray-400 hover:text-gray-600 flex items-center">
+                            <svg id="session-fs-expand-icon" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                            </svg>
+                            <svg id="session-fs-collapse-icon" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Messages + Summary side by side -->
+            <div class="flex flex-1 overflow-hidden">
+                <!-- Messages -->
+                <div id="chat-drop-zone" class="relative flex-1 min-w-0 flex flex-col overflow-hidden">
+                <!-- Drop overlay -->
+                <div id="chat-drop-overlay" class="hidden absolute inset-0 z-40 flex items-center justify-center pointer-events-none" style="background:rgba(99,102,241,0.08)">
+                    <div class="border-2 border-dashed border-indigo-400 rounded-xl px-8 py-6 flex flex-col items-center gap-2 bg-white/80 dark:bg-gray-800/80">
+                        <svg class="w-8 h-8 text-indigo-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"/></svg>
+                        <span class="text-sm font-medium text-indigo-600 dark:text-indigo-400">Drop file here</span>
+                    </div>
+                </div>
+                <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3 min-w-0">
+                    <div id="empty-state" class="flex items-center justify-center h-full text-gray-400 text-sm">
+                        Select a session to view conversation
+                    </div>
+                </div>
+                <!-- Scroll-to-bottom button -->
+                <button id="scroll-to-bottom-btn" class="scroll-to-bottom-btn hidden" onclick="scrollChatToBottom()" title="Scroll to bottom">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
+                        <path fill-rule="evenodd" d="M10 3a.75.75 0 0 1 .75.75v10.638l3.96-4.158a.75.75 0 1 1 1.08 1.04l-5.25 5.5a.75.75 0 0 1-1.08 0l-5.25-5.5a.75.75 0 1 1 1.08-1.04l3.96 4.158V3.75A.75.75 0 0 1 10 3Z" clip-rule="evenodd"/>
+                    </svg>
+                </button>
+                </div>
+
+                <!-- Side panels wrapper (Agent State + Session State stacked vertically) -->
+                <div id="side-panels-wrapper" class="hidden lg:flex flex-col border-l dark:border-gray-600 border-gray-200 bg-white dark:bg-gray-800 flex-shrink-0 min-h-0 min-w-0 overflow-hidden" style="width: 300px;">
+                    <!-- Agent State Panel -->
+                    <div id="agent-state-panel" class="flex-shrink-0">
+                        <div id="AgentState" class="flex justify-between items-center px-4 py-3 border-b border-gray-100 dark:border-gray-600">
+                            <h4 class="text-xs font-semibold text-gray-600 dark:text-gray-100 uppercase tracking-wide">Agent State</h4>
+                            <button onclick="loadAgentState()" class="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Refresh">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-3.5 h-3.5"><path fill-rule="evenodd" d="M15.312 11.424a5.5 5.5 0 0 1-9.201 2.466l-.312-.311h2.433a.75.75 0 0 0 0-1.5H4.598a.75.75 0 0 0-.75.75v3.634a.75.75 0 0 0 1.5 0v-2.033l.312.311a7 7 0 0 0 11.712-3.138.75.75 0 0 0-1.449-.39Zm-10.625-2.85a5.5 5.5 0 0 1 9.201-2.465l.312.31H11.767a.75.75 0 0 0 0 1.5h3.634a.75.75 0 0 0 .75-.75V3.535a.75.75 0 0 0-1.5 0v2.033l-.312-.31A7 7 0 0 0 2.627 8.396a.75.75 0 0 0 1.449.39l.611.789Z" clip-rule="evenodd"/></svg>
+                            </button>
+                        </div>
+                        <div id="agent-state-content" class="overflow-y-auto overflow-x-hidden p-4 break-words" style="max-height:200px;">
+                            <p class="text-xs text-gray-400 dark:text-gray-500 italic">No state yet.</p>
+                        </div>
+                    </div>
+
+                    <!-- Summary Panel -->
+                    <div id="summary-panel" class="flex flex-col flex-1 min-h-0">
+                        <div id="SessionRecap" class="flex justify-between items-center px-4 py-3 border-b border-gray-100 dark:border-gray-600 flex-shrink-0">
+                            <h4 class="text-xs font-semibold text-gray-600 dark:text-gray-100 uppercase tracking-wide">Session State</h4>
+                            <div class="flex items-center gap-4">
+                                <button onclick="forceRecap(this)" class="text-xs text-gray-400 hover:text-indigo-500 p-1" title="Recap Now">✨</button>
+                                <button onclick="loadSessionSummary()" class="text-xs text-gray-400 hover:text-gray-600" title="Refresh">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-3.5 h-3.5"><path fill-rule="evenodd" d="M15.312 11.424a5.5 5.5 0 0 1-9.201 2.466l-.312-.311h2.433a.75.75 0 0 0 0-1.5H4.598a.75.75 0 0 0-.75.75v3.634a.75.75 0 0 0 1.5 0v-2.033l.312.311a7 7 0 0 0 11.712-3.138.75.75 0 0 0-1.449-.39Zm-10.625-2.85a5.5 5.5 0 0 1 9.201-2.465l.312.31H11.767a.75.75 0 0 0 0 1.5h3.634a.75.75 0 0 0 .75-.75V3.535a.75.75 0 0 0-1.5 0v2.033l-.312-.31A7 7 0 0 0 2.627 8.396a.75.75 0 0 0 1.449.39l.611.789Z" clip-rule="evenodd"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="SessionStateContent" class="flex-1 overflow-y-auto overflow-x-hidden p-4 break-words">
+                            <div id="SessionContext"></div>
+                            <div id="SessionPlan"></div>
+                            <div id="SessionSkills"></div>
+                            <div id="SessionSummary"><p class="text-xs text-gray-400 italic">No summary yet.</p></div>
+                        </div>
+                        <div id="summary-meta" class="hidden px-4 py-2 border-t border-gray-100 dark:border-gray-600 text-[10px] text-gray-400 flex-shrink-0"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reply input -->
+            <div id="reply-bar" class="hidden p-3 bg-white border-t border-gray-200 flex-shrink-0 dark:bg-gray-800 dark:border-gray-600">
+                <!-- File preview strip -->
+                <div id="file-preview" class="hidden mb-2 flex items-center gap-2 px-2 py-1.5 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <img id="file-preview-img" class="hidden w-12 h-12 object-cover rounded" alt="">
+                    <svg id="file-preview-icon" class="hidden w-6 h-6 text-gray-400 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4zm-3 9h4v2h-4v-2zm0 3h4v2h-4v-2zm-2-3h1v2H8v-2zm0 3h1v2H8v-2z"/></svg>
+                    <span id="file-preview-name" class="text-xs text-gray-600 dark:text-gray-300 truncate flex-1"></span>
+                    <span id="file-preview-size" class="text-[10px] text-gray-400 flex-shrink-0"></span>
+                    <button type="button" onclick="clearFileInput()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 flex-shrink-0" title="Remove file">
+                        <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM8.28 7.22a.75.75 0 0 0-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 1 0 1.06 1.06L10 11.06l1.72 1.72a.75.75 0 1 0 1.06-1.06L11.06 10l1.72-1.72a.75.75 0 0 0-1.06-1.06L10 8.94 8.28 7.22Z" clip-rule="evenodd"/></svg>
+                    </button>
+                </div>
+                <!-- Editor-mode tip (shown on Shift+Enter) -->
+                <div id="editor-tip" class="hidden mb-2 flex items-center gap-2 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 rounded-lg text-xs text-indigo-700 dark:text-indigo-300">
+                    <svg class="w-4 h-4 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1V18h6v-1.2c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z"/></svg>
+                    <span class="flex-1">Writing something long? <button type="button" onclick="openChatEditorModal()" class="font-medium underline hover:text-indigo-600">Open in editor mode</button></span>
+                    <button type="button" onclick="hideEditorTip()" class="text-indigo-400 hover:text-indigo-600 flex-shrink-0" title="Dismiss">
+                        <svg class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM8.28 7.22a.75.75 0 0 0-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 1 0 1.06 1.06L10 11.06l1.72 1.72a.75.75 0 1 0 1.06-1.06L11.06 10l1.72-1.72a.75.75 0 0 0-1.06-1.06L10 8.94 8.28 7.22Z" clip-rule="evenodd"/></svg>
+                    </button>
+                </div>
+                <div class="flex gap-2">
+                    <input type="file" id="file-input" class="hidden"
+                           accept="image/*,.pdf,.txt,.md,.log,.json,.yaml,.yml,.xml,.csv,.tsv,.py,.js,.ts,.tsx,.jsx,.java,.go,.rs,.c,.cpp,.h,.rb,.php,.html,.css,.sql,.sh,.toml,.ini,.zip,.docx,.xlsx,.pptx,.odt,.ods,.odp,.rtf,.epub"
+                           onchange="onFileSelected(this)">
+                    <button type="button" id="attach-btn" onclick="document.getElementById('file-input').click()"
+                            class="hidden p-2.5 text-gray-400 hover:text-indigo-500 transition-colors flex-shrink-0" title="Attach file">
+                        <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                    </button>
+                    <textarea id="reply-input" placeholder="Type a reply as the bot..." rows="1"
+                           class="flex-1 p-2.5 border border-gray-200 rounded-lg text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/10 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100 resize-none overflow-hidden"
+                           style="max-height: 150px;"
+                           onkeydown="chatInputKeydown(event)"
+                           oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,150)+'px';this.style.overflowY=this.scrollHeight>150?'auto':'hidden'"></textarea>
+                    <button type="button" id="reply-btn" onclick="doSendReply()" title="Send" class="p-2.5 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors flex-shrink-0 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"><svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Drag-and-drop file upload modal -->
+    <div id="chat-drop-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-xl w-[66%] max-w-[420px] shadow-xl flex flex-col" style="max-height:85vh">
+            <div class="flex justify-between items-center p-5 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+                <h3 class="text-gray-800 dark:text-gray-100 font-semibold text-sm">Send File</h3>
+                <button onclick="closeChatDropModal()" class="bg-transparent border-none text-gray-400 text-2xl cursor-pointer hover:text-gray-800 dark:hover:text-gray-200">&times;</button>
+            </div>
+            <div class="p-5 overflow-y-auto flex-1">
+                <div class="flex flex-col items-center gap-3 mb-4">
+                    <img id="chat-drop-preview-img" class="hidden rounded-lg object-contain" style="max-width:100%;max-height:min(240px,40vh)" alt="">
+                    <div id="chat-drop-preview-file" class="hidden flex items-center gap-2 px-4 py-3 bg-gray-50 dark:bg-gray-700 rounded-lg w-full">
+                        <svg class="w-8 h-8 text-gray-400 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4zm-3 9h4v2h-4v-2zm0 3h4v2h-4v-2zm-2-3h1v2H8v-2zm0 3h1v2H8v-2z"/></svg>
+                        <div class="min-w-0 flex-1">
+                            <div id="chat-drop-filename" class="text-sm font-medium text-gray-700 dark:text-gray-200 truncate"></div>
+                            <div id="chat-drop-filesize" class="text-xs text-gray-400"></div>
+                        </div>
+                    </div>
+                </div>
+                <textarea id="chat-drop-message" placeholder="Add a message (optional)..." rows="1"
+                       class="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/10 dark:bg-gray-700 dark:text-gray-100 mb-4 resize-none overflow-hidden" style="max-height:150px"
+                       oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,150)+'px';this.style.overflowY=this.scrollHeight>150?'auto':'hidden'"></textarea>
+                <div class="flex gap-3 justify-end">
+                    <button onclick="closeChatDropModal()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-600 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700">Cancel</button>
+                    <button onclick="submitChatDropModal()" class="px-4 py-2 bg-indigo-500 text-white rounded-md text-sm hover:bg-indigo-600">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chat Editor Modal (editor mode for composing long messages) -->
+    <div id="chat-editor-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-[150] p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-xl w-[90%] max-w-[800px] shadow-xl flex flex-col overflow-hidden" style="max-height: 85vh;">
+            <div class="flex items-center justify-between px-5 py-3 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+                <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-200">&#9998; Editor Mode</h3>
+                <button onclick="closeChatEditorModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700" aria-label="Close editor" title="Close (Esc)">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="flex-1 min-h-0 flex flex-col p-5">
+                <textarea id="chat-editor-textarea"
+                    class="flex-1 w-full p-4 text-sm text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-600 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent transition-colors"
+                    style="min-height: 50vh;"
+                    placeholder="Type your message..."></textarea>
+            </div>
+            <div class="px-5 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between flex-shrink-0">
+                <span class="text-xs text-gray-400 dark:text-gray-500">Esc to close</span>
+                <div class="flex gap-2">
+                    <button onclick="closeChatEditorModal()" class="px-4 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors">Close</button>
+                    <button onclick="submitChatEditorModal()" class="px-4 py-1.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors">Submit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div><!-- /tab-chat -->
+
+    <!-- ==================== Settings Tab ==================== -->
+    <div id="tab-settings" class="flex-1 overflow-y-auto hidden">
+        <div class="max-w-2xl mx-auto p-6 space-y-8">
+
+            <!-- Clear All Sessions -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Clear All Sessions</h3>
+                        <p class="text-xs text-gray-500 mt-1">Permanently delete all chat sessions, messages, summaries, and their attachments across all agents. This action cannot be undone.</p>
+                    </div>
+                    <button onclick="clearAllSessions()" class="flex-shrink-0 px-4 py-2 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition-colors">
+                        Clear All
+                    </button>
+                </div>
+            </div>
+
+            <!-- Clear All Attachments -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Clear All Attachments</h3>
+                        <p class="text-xs text-gray-500 mt-1">Permanently delete every stored attachment (files and database rows) across all agents and sessions, without removing the conversations themselves. This action cannot be undone.</p>
+                    </div>
+                    <button onclick="clearAllAttachments()" class="flex-shrink-0 px-4 py-2 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition-colors">
+                        Clear All
+                    </button>
+                </div>
+            </div>
+
+            <!-- Chat Perspective Toggle -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Chat Perspective</h3>
+                        <p class="text-xs text-gray-500 mt-1">When set to <strong>B</strong> (left side), your messages appear on the left. When set to <strong>A</strong> (right side), your messages appear on the right. Works for both agent↔user and agent↔agent sessions.</p>
+                    </div>
+                    <label class="flex items-center gap-2 cursor-pointer select-none flex-shrink-0">
+                        <span class="text-xs text-gray-500">B</span>
+                        <div class="relative">
+                            <input type="checkbox" id="chat-perspective-toggle" class="sr-only peer" onchange="toggleChatPerspective(this.checked)">
+                            <div class="w-11 h-6 bg-gray-300 dark:bg-gray-600 rounded-full peer-checked:bg-indigo-500 dark:peer-checked:bg-indigo-400 transition-colors"></div>
+                            <div class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5"></div>
+                        </div>
+                        <span class="text-xs text-gray-500">A</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Events Dispatch Toggle -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Events Dispatch</h3>
+                        <p class="text-xs text-gray-500 mt-1">When enabled, events (turn_complete, message_received, summary_updated, etc.) are dispatched to third-party plugins. Disable to stop all plugin event processing.</p>
+                    </div>
+                    <label class="flex items-center cursor-pointer select-none flex-shrink-0">
+                        <div class="relative">
+                            <input type="checkbox" id="events-dispatch-toggle" class="sr-only peer" onchange="toggleEventsDispatch(this.checked)">
+                            <div class="w-11 h-6 bg-gray-300 dark:bg-gray-600 rounded-full peer-checked:bg-indigo-500 dark:peer-checked:bg-indigo-400 transition-colors"></div>
+                            <div class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5"></div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+        </div>
+    </div><!-- /tab-settings -->
+
+</div>
+
+<!-- Mobile Summary Overlay -->
+<div id="mobile-summary-overlay" class="md:hidden fixed inset-0 z-[70] hidden">
+    <div class="absolute inset-0 bg-black/40" onclick="closeMobileSummary()"></div>
+    <div class="absolute bottom-0 left-0 right-0 max-h-[70vh] bg-white dark:bg-gray-800 flex flex-col shadow-xl rounded-t-2xl transform transition-transform duration-200">
+        <div class="flex justify-between items-center px-4 py-3 border-b border-gray-200 dark:border-gray-600">
+            <h4 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Session State</h4>
+            <div class="flex items-center gap-4">
+                <button onclick="forceRecap(this)" class="text-sm text-gray-400 hover:text-indigo-500 p-1" title="Recap Now">✨</button>
+                <button onclick="loadSessionSummary()" class="text-xs text-gray-400 hover:text-gray-600" title="Refresh">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4"><path fill-rule="evenodd" d="M15.312 11.424a5.5 5.5 0 0 1-9.201 2.466l-.312-.311h2.433a.75.75 0 0 0 0-1.5H4.598a.75.75 0 0 0-.75.75v3.634a.75.75 0 0 0 1.5 0v-2.033l.312.311a7 7 0 0 0 11.712-3.138.75.75 0 0 0-1.449-.39Zm-10.625-2.85a5.5 5.5 0 0 1 9.201-2.465l.312.31H11.767a.75.75 0 0 0 0 1.5h3.634a.75.75 0 0 0 .75-.75V3.535a.75.75 0 0 0-1.5 0v2.033l-.312-.31A7 7 0 0 0 2.627 8.396a.75.75 0 0 0 1.449.39l.611.789Z" clip-rule="evenodd"/></svg>
+                </button>
+            </div>
+        </div>
+        <div id="mobile-SessionStateContent" class="flex-1 overflow-y-auto overflow-x-hidden p-4 break-words">
+            <div id="mobile-SessionContext"></div>
+            <div id="mobile-SessionPlan"></div>
+            <div id="mobile-SessionSkills"></div>
+            <div id="mobile-SessionSummary"><p class="text-xs text-gray-400 italic">No summary yet.</p></div>
+        </div>
+        <div id="mobile-summary-meta" class="hidden px-4 py-2 border-t border-gray-100 dark:border-gray-600 text-[10px] text-gray-400"></div>
+        <!-- Mobile Agent State -->
+        <div class="border-t border-gray-200 dark:border-gray-600">
+            <div id="MobileAgentState" class="flex justify-between items-center px-4 py-2 border-b border-gray-100 dark:border-gray-600">
+                <h5 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Agent State</h5>
+                <button onclick="loadAgentState()" class="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" title="Refresh">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-3.5 h-3.5"><path fill-rule="evenodd" d="M15.312 11.424a5.5 5.5 0 0 1-9.201 2.466l-.312-.311h2.433a.75.75 0 0 0 0-1.5H4.598a.75.75 0 0 0-.75.75v3.634a.75.75 0 0 0 1.5 0v-2.033l.312.311a7 7 0 0 0 11.712-3.138.75.75 0 0 0-1.449-.39Zm-10.625-2.85a5.5 5.5 0 0 1 9.201-2.465l.312.31H11.767a.75.75 0 0 0 0 1.5h3.634a.75.75 0 0 0 .75-.75V3.535a.75.75 0 0 0-1.5 0v2.033l-.312-.31A7 7 0 0 0 2.627 8.396a.75.75 0 0 0 1.449.39l.611.789Z" clip-rule="evenodd"/></svg>
+                </button>
+            </div>
+            <div id="mobile-agent-state-content" class="p-4 overflow-x-hidden break-words">
+                <p class="text-xs text-gray-400 dark:text-gray-500 italic">No state yet.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/chat-ui.js') }}?v=60"></script>
+<script src="{{ url_for('static', filename='js/agent-state.js') }}?v=5"></script>
+<script>
+let allSessions = [];
+let currentSessionId = null;
+let currentAgentId = null;
+let currentAttachmentsEnabled = true;
+let lastChatTs = 0;
+let pollTimer = null;
+let sidebarPollTimer = null;
+let _selectGeneration = 0;  // incremented on every selectSession call; guards stale async renders
+let _sseThinkingId = null;  // active thinking bubble from SSE
+let _sseCompleted = false;  // compatibility guard for poll ownership
+let _sessionTurn = { phase: 'idle', lastSeq: 0, terminalSeq: 0 };
+let _pendingIntermediateResponse = null;  // queued intermediate response, shown when next thinking event starts
+let _pollThinkingId = null;  // active thinking bubble from incremental poll (persists across calls)
+let _pollInFlight = false;  // guard against concurrent pollNewMessages calls
+let _chatPerspective = 'A';  // 'A' (right) or 'B' (left) — controls which side your messages appear on
+let _sessionsAbort = null;  // AbortController for the in-flight /api/sessions load; supersede on new call
+
+// ==================== Reasoning State (refresh recovery) ====================
+// Save { sessionId, lastSeq } to sessionStorage while a turn is in progress so
+// that on page refresh the client can replay the trace and resume from the right seq.
+
+const _REASONING_KEY = 'evonic_active_reasoning';
+const _LAST_SESSION_KEY = 'evonic_last_session';
+
+function saveReasoningState(sessionId, lastSeq) {
+    try { sessionStorage.setItem(_REASONING_KEY, JSON.stringify({ sessionId, lastSeq })); } catch (_) {}
+}
+function clearReasoningState() {
+    try { sessionStorage.removeItem(_REASONING_KEY); } catch (_) {}
+}
+function loadReasoningState() {
+    try { return JSON.parse(sessionStorage.getItem(_REASONING_KEY) || 'null'); } catch (_) { return null; }
+}
+
+// ==================== SSE Event Dispatcher (module-level) ====================
+// Kept outside connectSessionStream so selectSession can call it during replay.
+
+function _beginSessionTurn(startTs = null, anchor = null) {
+    if (_sessionTurn.phase === 'active') return _sseThinkingId;
+    _sessionTurn.phase = 'active';
+    _sessionTurn.terminalSeq = 0;
+    _sseCompleted = false;
+    if (!_sseThinkingId) {
+        _sseThinkingId = chatUI.showThinkingIndicator(startTs, anchor);
+    }
+    showStopBtn(true);
+    return _sseThinkingId;
+}
+
+function _completeSessionTurn(seq = 0) {
+    if (_sessionTurn.phase === 'complete') return false;
+    _sessionTurn.phase = 'complete';
+    _sessionTurn.terminalSeq = Math.max(_sessionTurn.terminalSeq, seq || 0, _sessionTurn.lastSeq);
+    _sseCompleted = true;
+    clearReasoningState();
+    showStopBtn(false);
+    if (_sseThinkingId) {
+        chatUI.finalizeThinkingBubble(_sseThinkingId);
+        _sseThinkingId = null;
+    }
+    if (_pollThinkingId) {
+        chatUI.finalizeThinkingBubble(_pollThinkingId);
+        _pollThinkingId = null;
+    }
+    return true;
+}
+
+function formatWhatsAppRestriction(content, metadata) {
+    const ends = metadata && metadata.reachout_enforcement_ends;
+    if (!ends) return content || '';
+    const date = new Date(ends);
+    if (Number.isNaN(date.getTime())) return content || '';
+    return (content || '') + '\nLocal time: ' + date.toLocaleString() + ' (' + ends + ')';
+}
+
+function dispatchSessionEvent(evtName, data, sessionId) {
+    if (currentSessionId !== sessionId) return;
+    const seq = data.seq || 0;
+    if (_sessionTurn.phase === 'complete' && seq && seq <= _sessionTurn.terminalSeq) return;
+    if (evtName === 'turn_begin') {
+        _beginSessionTurn(data.ts || null);
+    } else if (evtName === 'thinking') {
+        _beginSessionTurn();
+        // Clear any pending intermediate response — it was already shown inside the bubble
+        // via a response_chunk timeline entry. We no longer split the bubble.
+        if (_pendingIntermediateResponse !== null) {
+            _pendingIntermediateResponse = null;
+        }
+        if (!_sseThinkingId) {
+            // Finalize any orphaned poll bubble before SSE takes over
+            if (_pollThinkingId) {
+                chatUI.finalizeThinkingBubble(_pollThinkingId);
+                _pollThinkingId = null;
+            }
+            _sseThinkingId = chatUI.showThinkingIndicator();
+        }
+        chatUI.appendTimelineEntry(_sseThinkingId, {type: 'thinking', content: data.content});
+    } else if (evtName === 'tool_call_started') {
+        _beginSessionTurn();
+        chatUI.appendTimelineEntry(_sseThinkingId, {type: 'tool_call', tool: data.tool, args: data.args, param_types: data.param_types || {}});
+    } else if (evtName === 'tool_executed') {
+        _beginSessionTurn();
+        chatUI.appendTimelineEntry(_sseThinkingId, {type: 'tool_result', tool: data.tool, result: data.result, error: data.error});
+    } else if (evtName === 'state:changed') {
+        document.dispatchEvent(new CustomEvent('evonic:state-changed', {detail: data}));
+        document.dispatchEvent(new CustomEvent('evonic:agent-state-changed', {detail: data}));
+    } else if (evtName === 'response_chunk') {
+        if (data.content && _sseThinkingId) {
+            chatUI.appendTimelineEntry(_sseThinkingId, {type: 'response', content: data.content});
+        }
+        if (data.send_as_message && !data.is_final && data.content) {
+            _pendingIntermediateResponse = data.content;
+        }
+    } else if (evtName === 'approval_required') {
+        if (_sseThinkingId) {
+            chatUI.appendApprovalCard(_sseThinkingId, data, currentAgentId);
+            chatUI.setApprovalPendingState(_sseThinkingId, true);
+        }
+        document.dispatchEvent(new CustomEvent('evonic:approval-required', {detail: data}));
+    } else if (evtName === 'approval_resolved') {
+        if (_sseThinkingId) {
+            chatUI.setApprovalPendingState(_sseThinkingId, false);
+        }
+        chatUI.resolveApprovalCard(data);
+        document.dispatchEvent(new CustomEvent('evonic:approval-resolved', {detail: data}));
+    } else if (evtName === 'turn_split') {
+        // Injected message consumed by loop — finalize current bubble, start new one
+        if (_sseThinkingId) {
+            chatUI.finalizeThinkingBubble(_sseThinkingId);
+        }
+        _sseThinkingId = chatUI.showThinkingIndicator();
+        chatUI.markQueuedAsDelivered();
+    } else if (evtName === 'whatsapp_restriction_warning') {
+        chatUI.appendMessage('system', formatWhatsAppRestriction(data.content, data.metadata),
+            {metadata: data.metadata || {}});
+    } else if (evtName === 'done') {
+        _completeSessionTurn(seq);
+    } else if (evtName === 'session_clear') {
+        // Clear chat history when session is cleared, reset cursor so poll reloads
+        lastChatTs = 0;
+        chatUI.clearContainer();
+    }
+}
+
+const POLL_INTERVAL = 2000;       // poll chat every 2s
+const SIDEBAR_POLL_INTERVAL = 5000; // refresh sidebar every 5s
+
+const chatUI = new ChatUI($('#chat-messages'), {
+    perspective: 'A',
+    showTimestamps: true,
+    userBubbleClass: 'bg-white text-gray-800 border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100',
+    assistantBubbleClass: 'bg-gray-200 text-gray-800 dark:bg-[#152A3A] border dark:border-[#1B394F] dark:text-gray-100',
+    formatTimestamp: formatTime,
+});
+
+// Wiki-link clicks from chat messages → preview modal
+document.addEventListener('evonic:wikilink-click', async function (e) {
+    const title = e.detail && e.detail.title;
+    if (!title || !currentAgentId) return;
+    const fromModal = !!(e.detail && e.detail._fromModal);
+    var slug = null;
+    try {
+        const res = await fetch('/api/agents/' + encodeURIComponent(currentAgentId) + '/kb-graph');
+        const graphData = await res.json();
+        const pages = (graphData && graphData.pages) || {};
+        const want = title.trim().toLowerCase();
+        for (const [s, p] of Object.entries(pages)) {
+            const pt = (p.title || '').trim().toLowerCase();
+            if (pt === want || s.toLowerCase() === want || s.split('/').pop().toLowerCase() === want) { slug = s; break; }
+        }
+    } catch (err) { /* ignore */ }
+    if (!slug) { showWikilinkPreview(title, null, fromModal); return; }
+    try {
+        const res = await fetch('/api/agents/' + encodeURIComponent(currentAgentId) + '/kb/' + encodeURIComponent(slug + '.md'));
+        const data = await res.json();
+        if (data.error) { showWikilinkPreview(title, null, fromModal); return; }
+        showWikilinkPreview(title, renderKBDocPreview(data.content), fromModal);
+    } catch (err) { showWikilinkPreview(title, null, fromModal); }
+});
+
+// Scroll-to-bottom button logic
+(function() {
+    const msgs = document.getElementById('chat-messages');
+    const btn = document.getElementById('scroll-to-bottom-btn');
+    if (!msgs || !btn) return;
+    msgs.addEventListener('scroll', function() {
+        const nearBottom = msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight < 80;
+        btn.classList.toggle('hidden', nearBottom);
+    });
+})();
+
+function scrollChatToBottom() {
+    chatUI.scrollToBottom();
+    document.getElementById('scroll-to-bottom-btn').classList.add('hidden');
+}
+
+// Render a flat list of JSONL entries into the chat container.
+// Pass { persistent: true } when called from incremental polling so the thinking
+// bubble persists across multiple poll calls within a single turn.
+function renderEntries(entries, { persistent = false } = {}) {
+    let thinkingId = persistent ? _pollThinkingId : null;
+    let entryCount = 0;
+    for (const entry of entries) {
+        if (entry.ts > lastChatTs) lastChatTs = entry.ts;
+        const type = entry.type;
+        entryCount++;
+        if (type === 'user') {
+            // Skip if this exact message was already optimistically rendered by sendReply
+            if (_pendingReplyText !== null && entry.content === _pendingReplyText) {
+                _pendingReplyText = null;
+                continue;
+            }
+            // Skip next user entry after file upload (content differs due to prepended file text)
+            if (_pendingFileUpload) {
+                _pendingFileUpload = false;
+                continue;
+            }
+            chatUI.appendMessage('user', entry.content || '', {timestamp: entry.ts ? new Date(entry.ts).toISOString() : null, metadata: entry.metadata});
+        } else if (type === 'thinking') {
+            if (!thinkingId) thinkingId = chatUI.showThinkingIndicator();
+            chatUI.appendTimelineEntry(thinkingId, {type: 'thinking', content: entry.content});
+        } else if (type === 'tool_call') {
+            if (!thinkingId) thinkingId = chatUI.showThinkingIndicator();
+            chatUI.appendTimelineEntry(thinkingId, {type: 'tool_call', tool: entry.function, args: entry.params || {}, param_types: {}});
+        } else if (type === 'tool_output') {
+            if (!thinkingId) thinkingId = chatUI.showThinkingIndicator();
+            let result;
+            try { result = JSON.parse(entry.content); } catch (_) { result = entry.content; }
+            chatUI.appendTimelineEntry(thinkingId, {type: 'tool_result', tool: entry.function, result, error: !!entry.error});
+        } else if (type === 'intermediate') {
+            if (!thinkingId) thinkingId = chatUI.showThinkingIndicator();
+            chatUI.appendTimelineEntry(thinkingId, {type: 'response', content: entry.content});
+        } else if (type === 'final') {
+            const meta = entry.metadata || {};
+            console.log('[renderEntries] FINAL entry #%d thinkingId=%s content_len=%d content_preview=%s _pendingReplyText=%s',
+                entryCount, !!thinkingId, (entry.content||'').length, (entry.content||'').slice(0,60), _pendingReplyText);
+            if (thinkingId) {
+                chatUI.finalizeThinkingBubble(thinkingId, meta.thinking_duration);
+                thinkingId = null;
+                console.log('[renderEntries] FINAL finalized thinking bubble');
+            }
+            if (entry.content) {
+                // Skip if this was already optimistically rendered as an assistant reply (perspective 'B')
+                if (_pendingReplyText !== null && entry.content === _pendingReplyText) {
+                    _pendingReplyText = null;
+                    console.log('[renderEntries] FINAL skipped (matched _pendingReplyText)');
+                } else if (_pendingSlashResponse !== null && entry.content === _pendingSlashResponse) {
+                    _pendingSlashResponse = null;
+                    console.log('[renderEntries] FINAL skipped (matched _pendingSlashResponse from SSE done)');
+                } else {
+                    const $el = chatUI.appendMessage('assistant', entry.content, {timestamp: entry.ts ? new Date(entry.ts).toISOString() : null, metadata: meta});
+                    console.log('[renderEntries] FINAL appendMessage returned element:', !!$el.length);
+                }
+            } else {
+                console.warn('[renderEntries] FINAL entry has no content, skipping');
+            }
+        } else if (type === 'error') {
+            if (thinkingId) { chatUI.finalizeThinkingBubble(thinkingId); thinkingId = null; }
+            chatUI.appendMessage('error', entry.content || '');
+        } else if (type === 'system') {
+            // Dedup: suppress system entry that was already rendered by the POST handler
+            if (_pendingSlashResponse !== null && entry.content === _pendingSlashResponse && (entry.metadata || {}).slash_command) {
+                _pendingSlashResponse = null;
+                continue;
+            }
+            const meta = entry.metadata || {};
+            const content = meta.whatsapp_restriction_key
+                ? formatWhatsAppRestriction(entry.content, meta)
+                : (entry.content || '');
+            chatUI.appendMessage('system', content, {metadata: meta});
+        } else if (type === 'turn_end') {
+            if (thinkingId) { chatUI.finalizeThinkingBubble(thinkingId, entry.thinking_duration); thinkingId = null; }
+        }
+    }
+    if (persistent) {
+        _pollThinkingId = thinkingId;  // save for next incremental poll call
+    } else if (thinkingId) {
+        // In-progress turn detected: remove the incomplete bubble so the event-buffer
+        // replay (dispatchSessionEvent / restoreActiveReasoning) can create a fresh one
+        // without duplicating the entries that are already in the buffer.
+        console.warn('[renderEntries] removing orphan thinking indicator at end, thinkingId:', thinkingId);
+        chatUI.removeThinkingIndicator(thinkingId);
+    }
+    console.log('[renderEntries] processed', entryCount, 'entries, persistent:', persistent, 'orphanThinking:', !!thinkingId);
+}
+
+// Render a history message whose timeline should be split into per-iteration bubbles
+// (used when send_intermediate_responses was ON during that turn — SQLite fallback).
+function renderInterleavedHistory(msg) {
+    const timeline = msg.metadata.timeline;
+    // Split timeline into iteration groups — each 'thinking' entry starts a new group
+    // Only split into a new group when the previous group had an intermediate response.
+    // Consecutive thinking entries with no response between them stay in the same bubble.
+    const groups = [];
+    let group = [];
+    let prevHadResponse = false;
+    for (const entry of timeline) {
+        if (entry.type === 'thinking' && group.length > 0 && prevHadResponse) {
+            groups.push(group);
+            group = [];
+            prevHadResponse = false;
+        }
+        group.push(entry);
+        if (entry.type === 'response') prevHadResponse = true;
+    }
+    if (group.length > 0) groups.push(group);
+
+    for (const g of groups) {
+        const thinkId = chatUI.showThinkingIndicator();
+        for (const entry of g) {
+            chatUI.appendTimelineEntry(thinkId, entry);
+        }
+        chatUI.finalizeThinkingBubble(thinkId);
+        // Show intermediate response (type='response') as a standalone bubble
+        const resp = g.find(e => e.type === 'response');
+        if (resp) {
+            chatUI.appendMessage('assistant', resp.content);
+        }
+    }
+    // Final response text
+    chatUI.appendMessage(msg.role, msg.content, {timestamp: msg.created_at});
+}
+
+// ==================== Session List ====================
+
+async function loadSessions(search) {
+    const q = (search || '').trim();
+    const url = q ? `/api/sessions?search=${encodeURIComponent(q)}` : '/api/sessions';
+    if (_sessionsAbort) _sessionsAbort.abort();   // supersede any in-flight load
+    const ctrl = new AbortController();
+    _sessionsAbort = ctrl;
+    try {
+        const res = await fetch(url, {signal: ctrl.signal});
+        const data = await res.json();
+        allSessions = data.sessions || [];
+        renderSessionList();
+    } catch (e) {
+        if (e.name !== 'AbortError') throw e;     // ignore superseded loads
+    } finally {
+        if (_sessionsAbort === ctrl) _sessionsAbort = null;
+    }
+}
+
+let searchDebounce;
+function debouncedLoadSessions(val) {
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(() => loadSessions(val), 300);
+}
+
+function renderSessionList() {
+    const list = document.getElementById('session-list');
+    if (!allSessions.length) {
+        list.innerHTML = '<div class="p-6 text-center text-gray-400 text-sm">No sessions found</div>';
+        return;
+    }
+    list.innerHTML = allSessions.map(s => {
+        const selected = s.id === currentSessionId ? 'bg-indigo-50 dark:bg-indigo-900/40 border-l-2 border-l-indigo-500' : 'border-l-2 border-l-transparent dark:border-l-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700';
+        const activeClass = (s.is_active && s.id !== currentSessionId) ? ' session-active' : '';
+        const preview = s.last_message ? truncate(s.last_message, 50) : 'No messages';
+        const prefixIcon = s.last_message_role === 'assistant' ? '<span class="text-indigo-400 mr-1">Bot:</span>' : '';
+        const chBadge = channelBadge(s.channel_type);
+        const botDot = s.bot_enabled ? '' : '<span class="inline-block w-1.5 h-1.5 rounded-full bg-red-400 ml-1" title="Bot disabled"></span>';
+        const displayName = explorerDisplayName(s);
+        return `
+        <div class="session-item relative p-3 cursor-pointer ${selected}${activeClass} transition-colors border-b border-gray-200 dark:border-gray-700 last:border-b-0" onclick="selectSession('${s.id}')">
+            <div class="flex items-center gap-2 mb-1">
+                <span class="text-sm font-medium truncate ${userIdColorClass(s.external_user_id)}">${displayName}</span>
+                ${chBadge}${botDot}
+            </div>
+            <div class="text-[10px] text-gray-500 truncate">${esc(s.external_user_id.split('__')[1])}</div>
+            <div class="text-xs text-gray-400 mt-1 truncate">${prefixIcon}${esc(preview)}</div>
+            <div class="text-[10px] text-gray-300 mt-1">${timeAgo(s.updated_at)} &middot; <span class="font-mono">${esc(s.id)}</span></div>
+            <button onclick="event.stopPropagation(); deleteSession('${s.id}')" title="Delete session"
+                class="session-delete-btn absolute top-2 right-2 text-gray-300 hover:text-red-500">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>
+        </div>`;
+    }).join('');
+}
+
+// ==================== Mobile Autocomplete ====================
+
+let mobileSearchTimeout;
+function onMobileSearch(val) {
+    clearTimeout(mobileSearchTimeout);
+    mobileSearchTimeout = setTimeout(async () => {
+        await loadSessions(val);
+        renderMobileDropdown();
+    }, 300);
+}
+
+function showMobileDropdown() {
+    if (allSessions.length) renderMobileDropdown();
+}
+
+function renderMobileDropdown() {
+    const dd = document.getElementById('mobile-dropdown');
+    if (!allSessions.length) { dd.classList.add('hidden'); return; }
+    dd.classList.remove('hidden');
+    dd.innerHTML = allSessions.slice(0, 20).map(s => {
+        const chBadge = channelBadge(s.channel_type);
+        const displayName = explorerDisplayName(s);
+        return `
+        <div class="p-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-50 dark:border-gray-600 last:border-0" onclick="selectSession('${s.id}'); document.getElementById('mobile-dropdown').classList.add('hidden');">
+            <div class="flex items-center gap-2">
+                <span class="text-sm font-medium truncate ${userIdColorClass(s.external_user_id)}">${displayName}</span>
+                ${chBadge}
+            </div>
+            <div class="text-xs text-gray-400">${esc(s.external_user_id)} &middot; ${timeAgo(s.updated_at)}</div>
+        </div>`;
+    }).join('');
+}
+
+document.addEventListener('click', e => {
+    const dd = document.getElementById('mobile-dropdown');
+    const input = document.getElementById('mobile-search');
+    if (!dd.contains(e.target) && e.target !== input) dd.classList.add('hidden');
+});
+
+// ==================== Chat Room ====================
+
+async function selectSession(sessionId) {
+    const gen = ++_selectGeneration;  // capture this call's generation; stale callbacks check against it
+    stopPolling();
+    disconnectSessionStream();
+    // Dispose any poll Turn that wasn't finalized — clears its setInterval/setTimeout
+    if (_pollThinkingId) { chatUI.removeThinkingIndicator(_pollThinkingId); _pollThinkingId = null; }
+    // Dispose all remaining active Turns and clear the container
+    chatUI.clear();
+    currentSessionId = sessionId;
+    currentAgentId = null;
+    lastChatTs = 0;
+    _sseThinkingId = null;
+    _sseCompleted = false;
+    _sessionTurn = { phase: 'idle', lastSeq: 0, terminalSeq: 0 };
+    _pendingIntermediateResponse = null;
+    _pollThinkingId = null;
+    _pollInFlight = false;
+    _pendingSlashResponse = null;
+    _pendingReplyText = null;
+    _pendingFileUpload = false;
+    renderSessionList();
+
+    const res = await fetch(`/api/sessions/${sessionId}`);
+    if (_selectGeneration !== gen) return;  // another selectSession started while we awaited
+    if (!res.ok) {
+        // Non-200 (e.g. 429 rate-limited): surface it instead of silently leaving an
+        // empty room. The chat was already cleared above, so without this the user
+        // just sees a blank panel with no explanation.
+        const msg = res.status === 429
+            ? 'Rate limited — too many requests. Please wait a moment, then reselect this session.'
+            : `Failed to load session (HTTP ${res.status}). Try again.`;
+        document.getElementById('chat-messages').innerHTML =
+            `<div class="flex items-center justify-center h-full text-gray-400 text-sm px-6 text-center">${esc(msg)}</div>`;
+        return;
+    }
+    const data = await res.json();
+    if (data.error) return;
+
+    const s = data.session;
+    const messages = data.messages || [];
+    currentAgentId = s.agent_id || null;
+    currentAttachmentsEnabled = s.attachments_enabled == null ? true : !!s.attachments_enabled;
+
+    // Remember last visited session
+    try { sessionStorage.setItem(_LAST_SESSION_KEY, sessionId); } catch (_) {}
+
+    // Update header
+    document.getElementById('chat-header').classList.remove('hidden');
+    document.getElementById('reply-bar').classList.remove('hidden');
+    document.getElementById('empty-state')?.classList.add('hidden');
+
+    document.getElementById('hdr-agent').textContent = explorerDisplayName(s);
+    document.getElementById('hdr-user').textContent = s.external_user_id;
+
+    const badge = document.getElementById('hdr-channel-badge');
+    if (s.channel_type === 'telegram') {
+        badge.className = 'text-xs px-2 py-0.5 rounded font-medium bg-blue-100 text-blue-700';
+        badge.textContent = 'Telegram';
+    } else if (s.channel_type === 'whatsapp') {
+        badge.className = 'text-xs px-2 py-0.5 rounded font-medium bg-green-100 text-green-700';
+        badge.textContent = 'WhatsApp';
+    } else if (s.channel_type) {
+        badge.className = 'text-xs px-2 py-0.5 rounded font-medium bg-purple-100 text-purple-700';
+        badge.textContent = s.channel_type;
+    } else {
+        badge.className = 'text-xs px-2 py-0.5 rounded font-medium bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-200';
+        badge.textContent = 'Web';
+    }
+
+    document.getElementById('bot-toggle').checked = !!s.bot_enabled;
+
+    // Render messages — prefer JSONL if available, fall back to SQLite
+    const container = document.getElementById('chat-messages');
+    if (currentAgentId) {
+        try {
+            const qs = `session_id=${encodeURIComponent(sessionId)}&limit=30`;
+            const jr = await fetch(`/api/agents/${encodeURIComponent(currentAgentId)}/chat?${qs}`);
+            if (_selectGeneration !== gen) return;  // stale — another selectSession started
+            if (jr.ok) {
+                const jd = await jr.json();
+                if (_selectGeneration !== gen) return;
+                const entries = jd.entries || [];
+                console.log('[selectSession] JSONL entries:', entries.length, 'has_more:', jd.has_more,
+                    'last:', entries.length ? entries[entries.length-1].type + ':' + (entries[entries.length-1].content||'').slice(0,60) : 'none',
+                    'first:', entries.length ? entries[0].type + ':' + (entries[0].content||'').slice(0,60) : 'none');
+                if (entries.length) {
+                    chatUI.batchRender(() => {
+                        console.log('[selectSession] batchRender start, container children before:', chatUI.$container.children().length);
+                        renderEntries(entries);
+                        console.log('[selectSession] batchRender done, container children after:', chatUI.$container.children().length);
+                    });
+                } else {
+                    // JSONL empty — fall back to SQLite messages
+                    console.warn('[selectSession] JSONL returned 0 entries (has_more:', jd.has_more, '), falling back to SQLite');
+                    _renderSqliteMessages(messages, container);
+                }
+            } else {
+                console.warn('[selectSession] JSONL fetch !ok, status:', jr.status, 'falling back to SQLite');
+                _renderSqliteMessages(messages, container);
+            }
+        } catch (e) {
+            console.error('[selectSession] JSONL fetch/parse error, falling back to SQLite:', e);
+            // Clear any partial render before falling back to SQLite
+            chatUI.clear();
+            _pollThinkingId = null;
+            _renderSqliteMessages(messages, container);
+        }
+    } else {
+        _renderSqliteMessages(messages, container);
+    }
+
+    // Show side panels wrapper on desktop only; keep hidden on mobile
+    const spw = document.getElementById('side-panels-wrapper');
+    if (window.innerWidth >= 1024) {
+        spw.classList.remove('hidden');
+        spw.classList.add('lg:flex');
+    } else {
+        spw.classList.add('hidden');
+        spw.classList.remove('lg:flex');
+    }
+    showMobileSummaryBtn(true);
+    clearSummaryPanel();
+    loadSessionSummary();
+    clearAgentStatePanel();
+    loadAgentState();
+
+    // Always check for any in-progress reasoning trace on the server.
+    // This is a fast in-memory buffer lookup — no I/O cost.
+    // Replay found events so the thinking bubble is restored immediately,
+    // then start SSE from resumeSeq so the backend only delivers the gap
+    // between this fetch and the moment the SSE subscription is registered.
+    let resumeSeq = 0;
+    if (currentAgentId) {
+        const selectedAgentId = currentAgentId;
+        let restoredReasoning = false;
+        try {
+            const [r, busyRes] = await Promise.all([
+                fetch(`/api/agents/${encodeURIComponent(selectedAgentId)}/chat/events?session_id=${encodeURIComponent(sessionId)}&after=0`),
+                fetch(`/api/agents/${encodeURIComponent(selectedAgentId)}/busy`),
+            ]);
+            if (_selectGeneration !== gen || currentSessionId !== sessionId || currentAgentId !== selectedAgentId) return;
+            let busyState = null;
+            if (busyRes.ok) busyState = await busyRes.json();
+            if (_selectGeneration !== gen || currentSessionId !== sessionId || currentAgentId !== selectedAgentId) return;
+            const ownsActiveTurn = !!(busyState && busyState.busy && busyState.session_id === sessionId);
+
+            if (r.ok) {
+                const body = await r.json();
+                if (_selectGeneration !== gen || currentSessionId !== sessionId || currentAgentId !== selectedAgentId) return;
+                const events = body.events || [];
+                console.log('[selectSession] event-buffer replay: got', events.length, 'events, types:', events.map(e=>e.event).join(','));
+                // Buffered traces enrich the active bubble but never establish activity
+                // alone: /busy owns that decision after a refresh.
+                const lastDoneIdx = events.reduce((idx, ev, i) => ev.event === 'done' ? i : idx, -1);
+                const replayEvents = lastDoneIdx >= 0 ? events.slice(lastDoneIdx + 1) : events;
+                console.log('[selectSession] event-buffer replay: lastDoneIdx=', lastDoneIdx, 'replayEvents=', replayEvents.length);
+                if (ownsActiveTurn && replayEvents.length) {
+                    const userMessages = container.querySelectorAll('[data-msg-role="user"]');
+                    const userMsgEl = userMessages.length ? userMessages[userMessages.length - 1] : null;
+                    const begin = replayEvents.find(ev => ev.event === 'turn_begin');
+                    _beginSessionTurn(begin?.data?.ts || null, userMsgEl);
+                    for (const ev of replayEvents) {
+                        if (ev.seq > resumeSeq) resumeSeq = ev.seq;
+                        _sessionTurn.lastSeq = Math.max(_sessionTurn.lastSeq, ev.seq || 0);
+                        dispatchSessionEvent(ev.event, ev.data, sessionId);
+                    }
+                    restoredReasoning = true;
+                    saveReasoningState(sessionId, resumeSeq);
+                    chatUI.scrollToBottom();
+                }
+            }
+
+            // An immediate refresh can beat the first buffered SSE event. In that
+            // empty-buffer window, restore a placeholder only when this exact
+            // session is still the agent's active turn.
+            if (!restoredReasoning && ownsActiveTurn) {
+                const userMessages = container.querySelectorAll('[data-msg-role="user"]');
+                const userMsgEl = userMessages.length ? userMessages[userMessages.length - 1] : null;
+                _beginSessionTurn(null, userMsgEl);
+                saveReasoningState(sessionId, resumeSeq);
+                restoredReasoning = true;
+                chatUI.scrollToBottom();
+            }
+        } catch (_) {
+            // Treat failed recovery checks as stale state; live SSE can still
+            // create a fresh bubble when a subsequent event arrives.
+        }
+        if (!restoredReasoning) clearReasoningState();
+    }
+
+    // Connect SSE for real-time thinking events, then start polling.
+    connectSessionStream(sessionId, resumeSeq);
+    startPolling();
+}
+
+function _renderSqliteMessages(messages, container) {
+    console.log('[_renderSqliteMessages] got', messages.length, 'messages from SQLite, last:', messages.length ? messages[messages.length-1].role + ':' + (messages[messages.length-1].content||'').slice(0,60) : 'none');
+    if (!messages.length) {
+        container.innerHTML = '<div data-empty-state class="text-center text-gray-400 text-sm py-8">No messages yet</div>';
+        return;
+    }
+    for (const msg of messages) {
+        if (msg.role === 'assistant' && msg.metadata?.send_intermediate_responses && msg.metadata?.timeline?.length) {
+            renderInterleavedHistory(msg);
+        } else {
+            chatUI.appendMessage(msg.role, msg.content, {timestamp: msg.created_at, metadata: msg.metadata});
+        }
+    }
+    container.scrollTop = container.scrollHeight;
+}
+
+// ==================== Real-time Polling ====================
+
+function startPolling() {
+    stopPolling();
+    pollTimer = setInterval(pollNewMessages, POLL_INTERVAL);
+}
+
+function stopPolling() {
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+}
+
+async function pollNewMessages() {
+    if (!currentSessionId || !currentAgentId) return;
+    if (_pollInFlight) return;
+    _pollInFlight = true;
+    const pollGen = _selectGeneration;  // capture generation; discard result if session changed
+    try {
+        const qs = `session_id=${encodeURIComponent(currentSessionId)}&after_ts=${lastChatTs}`;
+        const res = await fetch(`/api/agents/${encodeURIComponent(currentAgentId)}/chat?${qs}`);
+        if (_selectGeneration !== pollGen) return;  // session changed while fetch was in-flight
+        const data = await res.json();
+        if (_selectGeneration !== pollGen) return;
+        const entries = data.entries || [];
+        if (!entries.length) return;
+
+        const wasAtBottom = chatUI.isNearBottom(80);
+
+        // SSE owns live turn rendering. Poll only fills durable final messages or
+        // provides a terminal fallback when the stream missed the done event.
+        const turnEnded = entries.some(e => e.type === 'final' || e.type === 'turn_end' || e.type === 'error');
+        if (_sessionTurn.phase === 'active' || _sessionTurn.phase === 'complete') {
+            if (!turnEnded) {
+                for (const e of entries) {
+                    if (e.type !== 'user' && e.type !== 'system' && e.ts > lastChatTs) lastChatTs = e.ts;
+                }
+                return;
+            }
+            _completeSessionTurn(_sessionTurn.lastSeq);
+            // Only render final/user entries — SSE already showed the thinking+tool details
+            const finalEntries = entries.filter(e => e.type === 'final' || e.type === 'user' || e.type === 'error' || e.type === 'system');
+            renderEntries(finalEntries);
+            // Still advance lastChatTs for all entries
+            for (const e of entries) { if (e.ts > lastChatTs) lastChatTs = e.ts; }
+        } else {
+            renderEntries(entries, { persistent: true });
+        }
+
+        if (wasAtBottom) chatUI.scrollToBottom();
+
+        // Refresh summary when new messages arrive
+        loadSessionSummary();
+        loadAgentState();
+    } catch (e) {
+        // Silently ignore poll errors
+    } finally {
+        _pollInFlight = false;
+    }
+}
+
+// ==================== SSE Stream ====================
+
+let _sessionEs = null;
+
+// afterSeq: last seq the client already has from replay; SSE pre-fills only the gap above it.
+function connectSessionStream(sessionId, afterSeq = 0) {
+    // Close the old EventSource if any, but do NOT finalize the thinking bubble —
+    // it may have been restored by the replay in selectSession and must be kept alive.
+    if (_sessionEs) {
+        _sessionEs.close();
+        _sessionEs = null;
+    }
+    if (!currentAgentId) return;
+    afterSeq = Math.max(afterSeq, _sessionTurn.lastSeq, _sessionTurn.terminalSeq);
+    const url = `/api/realtime/stream?chat=1&agent_id=${encodeURIComponent(currentAgentId)}&session_id=${encodeURIComponent(sessionId)}&after=${afterSeq}`;
+    // LOG-A: track every connect/reconnect and whether _lastSeq will reset
+    console.log(`[sse] connect afterSeq=${afterSeq} sseThinkingId=${!!_sseThinkingId} url=${url}`);
+    if (afterSeq === 0 && _sseThinkingId) {
+        console.warn('[sse] RECONNECT with afterSeq=0 while thinking bubble is active — events will replay from seq=1 into existing Turn!');
+    }
+    const es = new EventSource(url);
+    _sessionEs = es;
+
+    let _lastSeq = afterSeq;  // start from where the replay left off
+    let _fillingGap = false;
+    const _gapQueue = [];
+    let _dispatchCount = 0; // LOG-B: count events dispatched per connection
+
+    async function fillGap(fromSeq, upToSeq) {
+        try {
+            const res = await fetch(`/api/agents/${encodeURIComponent(currentAgentId)}/chat/events?session_id=${encodeURIComponent(sessionId)}&after=${fromSeq}&up_to=${upToSeq}`);
+            const body = await res.json();
+            const gapEvents = body.events || [];
+            console.log(`[gap-fill] from=${fromSeq} to=${upToSeq} got ${gapEvents.length} events`);
+            for (const ev of gapEvents) {
+                if (ev.seq <= _lastSeq) continue;
+                _lastSeq = ev.seq;
+                _sessionTurn.lastSeq = Math.max(_sessionTurn.lastSeq, ev.seq || 0);
+                dispatchSessionEvent(ev.event, ev.data, sessionId);
+            }
+        } catch (err) {
+            console.warn('[gap-fill] failed:', err);
+            _lastSeq = upToSeq - 1;
+        }
+    }
+
+    function handleSeq(evtName, data, dispatch) {
+        const seq = data.seq || 0;
+        if (_fillingGap) {
+            _gapQueue.push({evtName, data});
+            return;
+        }
+        // Skip events already covered by the replay or a previous gap-fill
+        if (seq && seq <= _lastSeq) {
+            console.log(`[sse] dedup skip ${evtName} seq=${seq} _lastSeq=${_lastSeq}`);
+            return;
+        }
+        if (seq && _lastSeq > 0 && seq > _lastSeq + 1) {
+            console.warn(`[sse] gap detected ${evtName} seq=${seq} _lastSeq=${_lastSeq} gap=${seq-_lastSeq-1}`);
+            _fillingGap = true;
+            _gapQueue.push({evtName, data});
+            fillGap(_lastSeq, seq).then(() => {
+                _fillingGap = false;
+                console.log(`[gap-fill] draining queue len=${_gapQueue.length}`);
+                while (_gapQueue.length > 0) {
+                    const item = _gapQueue.shift();
+                    const itemSeq = item.data.seq || 0;
+                    if (itemSeq && itemSeq <= _lastSeq) continue;
+                    if (itemSeq) _lastSeq = itemSeq;
+                    dispatchSessionEvent(item.evtName, item.data, sessionId);
+                }
+            });
+            return;
+        }
+        if (seq) _lastSeq = seq;
+        if (seq) _sessionTurn.lastSeq = Math.max(_sessionTurn.lastSeq, seq);
+        saveReasoningState(sessionId, _lastSeq);
+        // LOG-B: count and log every event actually dispatched
+        _dispatchCount++;
+        console.log(`[sse] dispatch #${_dispatchCount} ${evtName} seq=${seq} _lastSeq=${_lastSeq} sseId=${!!_sseThinkingId}`);
+        dispatch(data);
+    }
+
+    for (const evtName of ['turn_begin', 'thinking', 'tool_call_started', 'tool_executed', 'state:changed', 'response_chunk', 'turn_split', 'whatsapp_restriction_warning', 'session_clear', 'approval_required', 'approval_resolved']) {
+        es.addEventListener(evtName, e => {
+            if (currentSessionId !== sessionId) return;
+            const data = JSON.parse(e.data);
+            // Normalize raw SSE field names to match gap-fill/replay format so
+            // dispatchSessionEvent receives consistent field names regardless of path.
+            if (evtName === 'tool_call_started') {
+                data.tool = data.tool_name || data.tool;
+                data.args = data.tool_args || data.args;
+            } else if (evtName === 'tool_executed') {
+                data.tool = data.tool_name || data.tool;
+                data.result = data.tool_result || data.result;
+                data.error = data.has_error || data.error;
+            }
+            handleSeq(evtName, data, d => dispatchSessionEvent(evtName, d, sessionId));
+        });
+    }
+
+    es.addEventListener('done', (e) => {
+        if (currentSessionId !== sessionId) return;
+
+        // Parse event data — slash commands carry response text directly
+        let payload = {};
+        try { payload = JSON.parse(e.data); } catch(_) {}
+        const doneSeq = payload.seq || 0;
+        _sessionTurn.lastSeq = Math.max(_sessionTurn.lastSeq, doneSeq);
+        if (!_completeSessionTurn(doneSeq)) return;
+
+        if (payload.slash_command && payload.response) {
+            // Slash command response — finalize any thinking bubble and display the response.
+            // Guard against duplicate: both POST callback and SSE 'done' can deliver this.
+            // Whichever fires first wins; the second silently skips the render.
+            const alreadyRendered = (
+                _pendingSlashResponse !== null &&
+                _pendingSlashResponse === payload.response
+            );
+            const wasAtBottom = chatUI.isNearBottom(80);
+            if (_sseThinkingId) {
+                chatUI.finalizeThinkingBubble(_sseThinkingId);
+                _sseThinkingId = null;
+            }
+            if (!alreadyRendered) {
+                // Not rendered yet — display the response and mark it so POST/poll skip it
+                const msgOpts = {};
+                if (payload.attachment_info) {
+                    msgOpts.metadata = { attachment_info: payload.attachment_info };
+                }
+                chatUI.appendMessage('assistant', payload.response, msgOpts);
+                if (wasAtBottom) requestAnimationFrame(() => chatUI.scrollToBottom());
+                _pendingSlashResponse = payload.response;
+            }
+            // If alreadyRendered is true: POST handler already rendered + set _pendingSlashResponse.
+            // Leave _pendingSlashResponse as-is so the poll can still dedup the stored entry.
+            _sseCompleted = true;
+            // Reconnect so we're ready for the next incoming message
+            es.close();
+            if (_sessionEs === es) {
+                _sessionEs = null;
+                const doneGen = _selectGeneration;
+                setTimeout(() => {
+                    if (currentSessionId === sessionId && _selectGeneration === doneGen) connectSessionStream(sessionId, _sessionTurn.lastSeq);
+                }, 500);
+            }
+            return;
+        }
+
+        // Flush any pending intermediate response before closing
+        if (_pendingIntermediateResponse !== null) {
+            if (_sseThinkingId) {
+                chatUI.finalizeThinkingBubble(_sseThinkingId);
+                _sseThinkingId = null;
+            }
+            chatUI.appendMessage('assistant', _pendingIntermediateResponse);
+            _pendingIntermediateResponse = null;
+        }
+        if (_sseThinkingId) {
+            chatUI.finalizeThinkingBubble(_sseThinkingId);
+            _sseThinkingId = null;
+        }
+        // Render the final response from the done event. The SSE done event
+        // already carries the response text (from turn_complete). Rendering it
+        // here means the chat bubble appears instantly rather than waiting for
+        // the next poll tick. This is also the ONLY path that works for
+        // explorer sub-agent sessions — their JSONL chatlog lives under the
+        // parent's agent ID, so the poll's chatlog_manager.get(agent_id, ...)
+        // lookup returns nothing (see routes/agents.py api_chat_jsonl).
+        if (payload.response) {
+            const wasAtBottom = chatUI.isNearBottom(80);
+            const msgOpts = {};
+            if (payload.attachment_info) {
+                msgOpts.metadata = { attachment_info: payload.attachment_info };
+            }
+            chatUI.appendMessage('assistant', payload.response, msgOpts);
+            if (wasAtBottom) requestAnimationFrame(() => chatUI.scrollToBottom());
+            _pendingSlashResponse = payload.response;
+        }
+        _sseCompleted = true;
+        // Reconnect so we're ready for the next incoming message
+        es.close();
+        if (_sessionEs === es) {
+            _sessionEs = null;
+            const doneGen = _selectGeneration;
+            setTimeout(() => {
+                if (currentSessionId === sessionId && _selectGeneration === doneGen) connectSessionStream(sessionId, _sessionTurn.lastSeq);
+            }, 500);
+        }
+    });
+
+    es.onerror = () => {
+        // SSE dropped — reconnect after a short delay if session is still active.
+        // Do NOT clear reasoning state here: the turn may still be running,
+        // and the saved state lets a page refresh recover properly.
+        // Do NOT finalize the thinking bubble — keep _sseThinkingId alive so the
+        // reconnected stream continues appending to the same bubble.
+        _pendingIntermediateResponse = null;
+        es.close();
+        if (_sessionEs === es) {
+            _sessionEs = null;
+            setTimeout(() => {
+                if (currentSessionId === sessionId) connectSessionStream(sessionId, _sessionTurn.lastSeq);
+            }, 2000);
+        }
+    };
+}
+
+function disconnectSessionStream() {
+    if (_sessionEs) {
+        _sessionEs.close();
+        _sessionEs = null;
+    }
+    if (_sseThinkingId) {
+        chatUI.finalizeThinkingBubble(_sseThinkingId);
+        _sseThinkingId = null;
+    }
+    showStopBtn(false);
+}
+
+// Sidebar refresh: keep session list up to date
+function startSidebarPolling() {
+    const tick = async () => {
+        const search = document.getElementById('sidebar-search')?.value || '';
+        try { await loadSessions(search); } catch (_) {}
+        sidebarPollTimer = setTimeout(tick, SIDEBAR_POLL_INTERVAL);
+    };
+    sidebarPollTimer = setTimeout(tick, SIDEBAR_POLL_INTERVAL);
+}
+
+// ==================== Admin Reply ====================
+
+let _pendingReplyText = null; // text of optimistically-rendered reply; suppressed in poll
+let _pendingFileUpload = false; // skip next user entry in poll (file upload dedup)
+let _pendingSlashResponse = null; // content of just-rendered slash command response; suppressed in poll
+
+// ==================== File Upload Helpers ====================
+
+function onFileSelected(input) {
+    const file = input.files[0];
+    const preview = document.getElementById('file-preview');
+    if (!file) { preview.classList.add('hidden'); return; }
+
+    const previewImg = document.getElementById('file-preview-img');
+    const previewIcon = document.getElementById('file-preview-icon');
+    const previewName = document.getElementById('file-preview-name');
+    const previewSize = document.getElementById('file-preview-size');
+
+    previewName.textContent = file.name;
+    previewSize.textContent = file.size < 1024 ? `${file.size} B`
+        : file.size < 1048576 ? `${(file.size / 1024).toFixed(1)} KB`
+        : `${(file.size / 1048576).toFixed(1)} MB`;
+
+    if (file.type.startsWith('image/')) {
+        previewImg.src = URL.createObjectURL(file);
+        previewImg.classList.remove('hidden');
+        previewIcon.classList.add('hidden');
+    } else {
+        previewImg.classList.add('hidden');
+        previewIcon.classList.remove('hidden');
+    }
+    preview.classList.remove('hidden');
+}
+
+function clearFileInput() {
+    const input = document.getElementById('file-input');
+    input.value = '';
+    const preview = document.getElementById('file-preview');
+    preview.classList.add('hidden');
+    const previewImg = document.getElementById('file-preview-img');
+    if (previewImg.src) { URL.revokeObjectURL(previewImg.src); previewImg.src = ''; }
+}
+
+// ==================== Image Paste ====================
+
+(function initChatImagePaste() {
+    const input = document.getElementById('reply-input');
+    if (!input) return;
+    input.addEventListener('paste', function(event) {
+        const items = event.clipboardData?.items;
+        if (!items) return;
+        const images = Array.from(items)
+            .filter(item => item.type.startsWith('image/'))
+            .map(item => item.getAsFile())
+            .filter(Boolean);
+        if (!images.length) return;
+        event.preventDefault();
+
+        if (!currentAttachmentsEnabled) {
+            if (typeof showToast === 'function') {
+                showToast('This agent does not support file attachments. Enable attachments in Agent Settings to upload files.', true);
+            }
+            return;
+        }
+
+        // Sessions page supports a single file attachment; use the first pasted image.
+        const file = images[0];
+        const fileInput = document.getElementById('file-input');
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        fileInput.files = dt.files;
+        onFileSelected(fileInput);
+    });
+})();
+
+// ==================== Drag & Drop File Upload ====================
+
+let _dragCounter = 0;
+let _droppedFile = null;
+
+function _formatFileSize(size) {
+    if (size < 1024) return `${size} B`;
+    if (size < 1048576) return `${(size / 1024).toFixed(1)} KB`;
+    return `${(size / 1048576).toFixed(1)} MB`;
+}
+
+function _isFileAccepted(file) {
+    const accept = document.getElementById('file-input').getAttribute('accept') || '';
+    const exts = accept.split(',').map(s => s.trim().toLowerCase());
+    if (exts.some(e => e === 'image/*') && file.type.startsWith('image/')) return true;
+    const fname = file.name.toLowerCase();
+    return exts.some(e => e.startsWith('.') && fname.endsWith(e));
+}
+
+(function initChatDropZone() {
+    const zone = document.getElementById('chat-drop-zone');
+    if (!zone) return;
+    const overlay = document.getElementById('chat-drop-overlay');
+
+    zone.addEventListener('dragenter', function(e) {
+        e.preventDefault();
+        _dragCounter++;
+        if (_dragCounter === 1) overlay.classList.remove('hidden');
+    });
+    zone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+    });
+    zone.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        _dragCounter--;
+        if (_dragCounter <= 0) { _dragCounter = 0; overlay.classList.add('hidden'); }
+    });
+    zone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        _dragCounter = 0;
+        overlay.classList.add('hidden');
+        const file = e.dataTransfer.files[0];
+        if (!file) return;
+        if (!currentSessionId) {
+            if (typeof showToast === 'function') showToast('Select a session first', true);
+            return;
+        }
+        if (!currentAttachmentsEnabled) {
+            if (typeof showToast === 'function') {
+                showToast('This agent does not support file attachments. Enable attachments in Agent Settings to upload files.', true);
+            }
+            return;
+        }
+        if (!_isFileAccepted(file)) {
+            if (typeof showToast === 'function') showToast('File type not supported', true);
+            return;
+        }
+        openChatDropModal(file);
+    });
+})();
+
+function openChatDropModal(file) {
+    _droppedFile = file;
+    const modal = document.getElementById('chat-drop-modal');
+    const previewImg = document.getElementById('chat-drop-preview-img');
+    const previewFile = document.getElementById('chat-drop-preview-file');
+    const msgInput = document.getElementById('chat-drop-message');
+
+    msgInput.value = (document.getElementById('reply-input') || {}).value || '';
+
+    if (file.type.startsWith('image/')) {
+        previewImg.src = URL.createObjectURL(file);
+        previewImg.classList.remove('hidden');
+        previewFile.classList.add('hidden');
+    } else {
+        previewImg.classList.add('hidden');
+        previewFile.classList.remove('hidden');
+        document.getElementById('chat-drop-filename').textContent = file.name;
+        document.getElementById('chat-drop-filesize').textContent = _formatFileSize(file.size);
+    }
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+        msgInput.focus();
+        msgInput.style.height = 'auto';
+        msgInput.style.height = Math.min(msgInput.scrollHeight, 150) + 'px';
+    }, 50);
+}
+
+function closeChatDropModal() {
+    const modal = document.getElementById('chat-drop-modal');
+    modal.classList.add('hidden');
+    const previewImg = document.getElementById('chat-drop-preview-img');
+    if (previewImg.src) { URL.revokeObjectURL(previewImg.src); previewImg.src = ''; }
+    _droppedFile = null;
+}
+
+function submitChatDropModal() {
+    if (!_droppedFile) return;
+    const msgInput = document.getElementById('chat-drop-message');
+    const replyInput = document.getElementById('reply-input');
+    const fileInput = document.getElementById('file-input');
+
+    // Set message text if provided
+    if (msgInput.value.trim()) replyInput.value = msgInput.value.trim();
+
+    // Inject dropped file into the file input
+    const dt = new DataTransfer();
+    dt.items.add(_droppedFile);
+    fileInput.files = dt.files;
+
+    closeChatDropModal();
+    doSendReply();
+}
+
+// Enter submits the drop modal (Shift+Enter inserts a newline); Escape closes it.
+document.addEventListener('keydown', function(e) {
+    const modal = document.getElementById('chat-drop-modal');
+    if (!modal || modal.classList.contains('hidden')) return;
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        submitChatDropModal();
+    } else if (e.key === 'Escape') {
+        e.preventDefault();
+        closeChatDropModal();
+    }
+});
+
+// ==================== Send Reply ====================
+
+// Chat-input keydown handler: Enter submits on desktop, inserts newline on mobile.
+// Mobile = viewport < 1024px. Desktop = viewport >= 1024px.
+// Per-keypress check reacts immediately to resize / rotation.
+const CHAT_DESKTOP_BREAKPOINT = 1024;
+function chatInputKeydown(event) {
+    if (event.key !== 'Enter') return;
+    if (event.shiftKey) {
+        // Shift+Enter inserts a newline natively; offer the editor-mode tip for long messages.
+        showEditorTip();
+        return;
+    }
+    const isDesktop = window.innerWidth >= CHAT_DESKTOP_BREAKPOINT;
+    if (isDesktop) {
+        // Desktop: Enter alone submits the message
+        event.preventDefault();
+        doSendReply();
+    }
+    // Mobile: Enter does nothing special — textarea handles newline natively.
+}
+
+// ==================== Editor Mode ====================
+
+function showEditorTip() {
+    const tip = document.getElementById('editor-tip');
+    if (tip) tip.classList.remove('hidden');
+}
+function hideEditorTip() {
+    const tip = document.getElementById('editor-tip');
+    if (tip) tip.classList.add('hidden');
+}
+
+// Open the editor-mode modal, pre-filled with the current chat input text.
+function openChatEditorModal() {
+    const input = document.getElementById('reply-input');
+    const ta = document.getElementById('chat-editor-textarea');
+    ta.value = input.value;
+    document.getElementById('chat-editor-modal').classList.remove('hidden');
+    hideEditorTip();
+    setTimeout(function () { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }, 50);
+}
+
+// Cancel: close the modal and move the edited text back into the regular chat input.
+function closeChatEditorModal() {
+    const input = document.getElementById('reply-input');
+    const ta = document.getElementById('chat-editor-textarea');
+    input.value = ta.value;
+    document.getElementById('chat-editor-modal').classList.add('hidden');
+    input.dispatchEvent(new Event('input')); // trigger auto-grow
+    input.focus();
+}
+
+// Submit: copy the edited text into the chat input and send it to the agent.
+function submitChatEditorModal() {
+    const input = document.getElementById('reply-input');
+    const ta = document.getElementById('chat-editor-textarea');
+    input.value = ta.value;
+    document.getElementById('chat-editor-modal').classList.add('hidden');
+    doSendReply();
+}
+
+// Esc cancels the editor modal (moving text back into the chat input).
+document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    const modal = document.getElementById('chat-editor-modal');
+    if (modal && !modal.classList.contains('hidden')) {
+        e.preventDefault();
+        closeChatEditorModal();
+    }
+});
+
+async function doSendReply() {
+    if (!currentSessionId) return;
+    const $input = $('#reply-input');
+    const text = $input.val().trim();
+    const fileInput = document.getElementById('file-input');
+    const file = fileInput.files[0] || null;
+    if (!text && !file) return;
+
+    const $btn = $('#reply-btn');
+    $btn.prop('disabled', true);
+
+    // Optimistically render the outgoing message so it appears before the thinking bubble.
+    // Perspective 'A' = sending as user role; 'B' = sending as assistant role.
+    const outRole = _chatPerspective === 'B' ? 'assistant' : 'user';
+    // Build optimistic metadata for image preview
+    let optimisticMeta = null;
+    if (file && file.type.startsWith('image/')) {
+        optimisticMeta = {image_url: URL.createObjectURL(file), _blob_url: true};
+    } else if (file) {
+        optimisticMeta = {attachment_info: {filename: file.name, mime_type: file.type, is_image: false}};
+    }
+    const displayText = text || (file ? (file.type.startsWith('image/') ? '[Image]' : `[File: ${file.name}]`) : '');
+    const $msgEl = chatUI.appendMessage(outRole, displayText, {metadata: optimisticMeta});
+    // Render a turn immediately. SSE later adopts this same bubble on turn_begin;
+    // a message injected into an existing turn remains queued instead.
+    const wasActiveTurn = _sessionTurn.phase === 'active';
+    const optimisticThinkingId = wasActiveTurn ? null : _beginSessionTurn(null, $msgEl);
+    if (wasActiveTurn) chatUI.markLastUserBubbleQueued($msgEl);
+    // Clear input and file preview immediately so the UI feels responsive
+    $input.val('');
+    // Reset textarea height — jQuery val('') doesn't fire the oninput handler
+    var textarea = $input[0];
+    textarea.style.height = 'auto';
+    textarea.style.overflowY = 'hidden';
+    // Re-apply after reflow so a stale scrollHeight from the oninput handler
+    // (which fires async) doesn't lock the height again.
+    requestAnimationFrame(function() {
+        if (textarea.value === '') {
+            textarea.style.height = 'auto';
+            textarea.style.overflowY = 'hidden';
+        }
+    });
+    if (file) clearFileInput();
+    requestAnimationFrame(function () { chatUI.scrollToBottom(); });
+    _pendingReplyText = null; // Will be set after we know the final text from backend
+
+    let res;
+    if (file) {
+        // Multipart upload with progress tracking
+        chatUI.markMessageUploading($msgEl);
+        const formData = new FormData();
+        formData.append('text', text);
+        formData.append('perspective', _chatPerspective);
+        formData.append('file', file);
+        res = await $.ajax({
+            url: `/api/sessions/${currentSessionId}/reply`,
+            method: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            xhr: function() {
+                const xhr = new XMLHttpRequest();
+                xhr.upload.addEventListener('progress', function(e) {
+                    if (e.lengthComputable) {
+                        chatUI.updateUploadProgress($msgEl, Math.round(e.loaded / e.total * 100));
+                    }
+                });
+                return xhr;
+            },
+        }).catch(err => ({ error: err.responseJSON?.error || 'Upload failed' }));
+        chatUI.markMessageUploadDone($msgEl);
+    } else {
+        // Existing JSON path
+        _pendingReplyText = text;
+        res = await $.ajax({
+            url: `/api/sessions/${currentSessionId}/reply`,
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({text, perspective: _chatPerspective}),
+        }).catch(err => ({ error: err.responseJSON?.error || 'Request failed' }));
+    }
+
+    $btn.prop('disabled', false);
+    if (res.error) {
+        _pendingReplyText = null;
+        _pendingFileUpload = false;
+        if (optimisticThinkingId && _sseThinkingId === optimisticThinkingId) {
+            chatUI.removeThinkingIndicator(optimisticThinkingId);
+            _sseThinkingId = null;
+            _sessionTurn = { phase: 'idle', lastSeq: _sessionTurn.lastSeq, terminalSeq: _sessionTurn.terminalSeq };
+            showStopBtn(false);
+        }
+        $msgEl.remove(); // remove optimistically-rendered message on failure
+        return alert(res.error);
+    }
+    hideEditorTip();
+    // Defensive: if the response indicates a UI clear (e.g. /clear command), clear the chat
+    if (res.clear_ui) {
+        chatUI.clearContainer();
+        _pendingReplyText = null;
+        _completeSessionTurn(_sessionTurn.lastSeq);
+        return;
+    }
+    // Slash command response — display immediately, then suppress duplicate renders.
+    // Guard: if SSE already rendered it (race), skip to avoid double display.
+    if (res.slash_command && res.response) {
+        const wasAtBottom = chatUI.isNearBottom(80);
+        if (_pendingSlashResponse === null) {
+            chatUI.appendMessage('assistant', res.response);
+            if (wasAtBottom) requestAnimationFrame(() => chatUI.scrollToBottom());
+        }
+        _pendingReplyText = null;
+        _pendingSlashResponse = res.response;
+        if (file) { _pendingFileUpload = true; }
+        _completeSessionTurn(_sessionTurn.lastSeq);
+        return;
+    }
+    if (file) {
+        _pendingFileUpload = true;
+    }
+}
+
+function showStopBtn(show) {
+    const btn = document.getElementById('stop-agent-btn');
+    if (show) btn.classList.remove('hidden');
+    else btn.classList.add('hidden');
+}
+
+// ==================== Stop Agent ====================
+
+async function stopAgent() {
+    if (!currentSessionId) return;
+    const btn = document.getElementById('stop-agent-btn');
+    btn.disabled = true;
+    btn.textContent = 'Stopping...';
+    try {
+        const res = await fetch(`/api/sessions/${currentSessionId}/stop`, {method: 'POST'});
+        const data = await res.json();
+        if (data.error) alert(data.error);
+    } catch(e) {
+        console.error('Stop failed:', e);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Stop';
+    }
+}
+
+// ==================== Bot Toggle ====================
+
+async function toggleBot(enabled) {
+    if (!currentSessionId) return;
+    await fetch(`/api/sessions/${currentSessionId}/bot`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({enabled})
+    });
+    const search = document.getElementById('sidebar-search')?.value || '';
+    loadSessions(search);
+}
+
+// ==================== Delete Session ====================
+
+async function deleteSession(sessionId) {
+    if (!sessionId) return;
+    if (!await showConfirm({title: 'Delete Session', message: 'This will clear all chat history for this session. The session will be hidden from the list but not deleted.', confirmText: 'Delete'})) return;
+    await fetch(`/api/sessions/${sessionId}`, {method: 'DELETE'});
+    if (sessionId === currentSessionId) {
+        stopPolling();
+        currentSessionId = null;
+        lastChatTs = 0;
+        document.getElementById('chat-header').classList.add('hidden');
+        document.getElementById('reply-bar').classList.add('hidden');
+        document.getElementById('chat-messages').innerHTML = '<div id="empty-state" class="flex items-center justify-center h-full text-gray-400 text-sm">Select a session to view conversation</div>';
+        document.getElementById('side-panels-wrapper').classList.remove('lg:flex');
+        document.getElementById('side-panels-wrapper').classList.add('hidden');
+        document.getElementById('mobile-summary-overlay').classList.add('hidden');
+        showMobileSummaryBtn(false);
+        clearSummaryPanel();
+    }
+    const search = document.getElementById('sidebar-search')?.value || '';
+    loadSessions(search);
+}
+
+// ==================== Session State ====================
+
+// Render the "Background Processes" section for the Session State panel.
+// Shared shape with agent_detail.html — spinner while running, ✓/✗ when done.
+// A "process" is a live thing — only running jobs are shown. Once a job
+// exits (done/timeout/failed) it drops off the list entirely, and rows are
+// styled as terminal command lines (mono + prompt glyph + live dot) so they
+// don't read like the checkbox/checkmark Task list.
+// In-memory cache of background process data, keyed by job_id.
+let _bgProcessesData = {};
+
+function buildBgProcessesHtml(procs) {
+    if (!Array.isArray(procs)) return '';
+    const running = procs.filter(p => p && p.status === 'running');
+    if (running.length === 0) return '';
+    // Store in cache for modal lookup
+    _bgProcessesData = {};
+    for (const p of running) {
+        _bgProcessesData[p.job_id] = p;
+    }
+    const liveDot = '<span class="relative flex h-2 w-2 flex-shrink-0"><span class="absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-60 animate-ping"></span><span class="relative inline-flex h-2 w-2 rounded-full bg-green-500"></span></span>';
+    let html = '<div class="mt-2"><div class="text-gray-500 dark:text-gray-400 font-medium mb-1 text-xs uppercase tracking-wide">Background Processes</div><ul class="space-y-1">';
+    for (const p of running) {
+        const secs = Math.max(0, Math.floor(Date.now() / 1000 - p.started_at));
+        const elapsed = secs < 60 ? `${secs}s` : (secs < 3600 ? `${Math.floor(secs / 60)}m` : `${Math.floor(secs / 3600)}h${Math.floor((secs % 3600) / 60)}m`);
+        html += `<li class="flex items-center gap-1.5 cursor-pointer rounded px-1 py-0.5 -mx-1 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" onclick="openBgProcessModal('${esc(p.job_id)}')" title="Click to view details">${liveDot}<span class="text-green-500 dark:text-green-400 font-mono text-[11px] flex-shrink-0 select-none">❯</span><span class="font-mono text-[11px] text-gray-700 dark:text-gray-200 truncate">${esc(p.command)}</span>${p.monitored ? '<span class="font-mono text-[10px] text-gray-400 dark:text-gray-500 flex-shrink-0" title="A monitor is attached — the agent will be notified">👁</span>' : ''}<span class="font-mono text-[10px] text-gray-400 dark:text-gray-500 flex-shrink-0 ml-auto tabular-nums">${esc(elapsed)}</span></li>`;
+    }
+    html += '</ul></div>';
+    return html;
+}
+
+// Render the "Context" usage block for the Session State panel: how much of
+// the model's context window the last LLM call consumed. cu = {used, max,
+// percent} from /chat/state; max/percent are null when the window is unknown.
+function buildContextUsageHtml(cu) {
+    if (!cu || !cu.used) return '';
+    const fmt = n => n >= 1000000 ? (n / 1000000).toFixed(1) + 'M' : (n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n));
+    let label, barHtml = '';
+    if (cu.max) {
+        const pct = Math.min(100, cu.percent || 0);
+        const color = pct > 85 ? 'bg-red-500' : (pct >= 60 ? 'bg-amber-500' : 'bg-indigo-500');
+        label = `${fmt(cu.used)} / ${fmt(cu.max)} (${pct}%)`;
+        barHtml = `<div class="w-full h-1.5 bg-gray-200 dark:bg-gray-600 rounded-full mt-1 overflow-hidden"><div class="h-1.5 ${color} rounded-full transition-all" style="width:${pct}%"></div></div>`;
+    } else {
+        label = `~${fmt(cu.used)} tokens`;
+    }
+    return `<div class="mb-3 pb-3 border-b border-gray-100 dark:border-gray-600"><div class="flex justify-between items-center"><span class="text-gray-500 dark:text-gray-400 font-medium text-xs uppercase tracking-wide">Context</span><span class="text-[10px] text-gray-400 dark:text-gray-500 tabular-nums">${label}</span></div>${barHtml}</div>`;
+}
+
+// ==================== Background Process Modal ====================
+
+let _bgProcessModalJobId = null;
+let _bgLogPollTimer = null;
+let _bgProcessModalTrigger = null;
+
+function _formatBgProcessDuration(seconds) {
+    const secs = Math.max(0, Math.floor(seconds || 0));
+    if (secs < 60) return `${secs}s`;
+    if (secs < 3600) return `${Math.floor(secs / 60)}m ${secs % 60}s`;
+    return `${Math.floor(secs / 3600)}h ${Math.floor((secs % 3600) / 60)}m ${secs % 60}s`;
+}
+
+function openBgProcessModal(jobId) {
+    const p = _bgProcessesData[jobId];
+    if (!p) return;
+    _bgProcessModalJobId = jobId;
+    _bgProcessModalTrigger = document.activeElement;
+
+    const backdrop = document.getElementById('bg-process-modal-backdrop');
+    const modal = document.getElementById('bg-process-modal');
+    const body = document.getElementById('bg-process-modal-body');
+    const title = document.getElementById('bg-process-modal-title');
+    let html = '<div class="space-y-6">';
+
+    // Command block — kept dark in both themes (terminal aesthetic).
+    html += '<div class="border-t border-gray-200 pt-5 dark:border-white/10">';
+    html += '<h4 class="text-sm font-bold text-gray-700 dark:text-slate-300">Command</h4>';
+    html += '<div class="mt-2.5 flex items-start gap-3 rounded-xl border border-white/10 bg-slate-950 p-4">';
+    html += `<pre class="min-w-0 flex-1 overflow-x-auto whitespace-pre-wrap break-words font-mono text-sm leading-6 text-slate-200"><code>${esc(p.command || '')}</code></pre>`;
+    html += '<button id="bg-process-copy-btn" type="button" onclick="copyBgProcessCommand()" class="inline-flex flex-shrink-0 items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-medium text-slate-300 transition hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50" aria-label="Copy background process command"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 9V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7a2 2 0 002 2h3"/></svg><span id="bg-process-copy-label">Copy</span></button>';
+    html += '</div></div>';
+
+    if (p.log_file) {
+        html += '<div class="border-t border-gray-200 pt-5 dark:border-white/10">';
+        html += '<div class="mb-2 flex items-center justify-between gap-3"><div class="flex items-center gap-2"><h4 class="text-sm font-bold text-gray-700 dark:text-slate-300">Live output</h4><span id="bg-log-live-badge" class="hidden items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-300"><span class="h-1.5 w-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400"></span>LIVE</span></div><span id="bg-log-refreshed" class="flex-shrink-0 text-xs text-gray-400 dark:text-slate-500" aria-live="polite"></span></div>';
+        html += `<p class="mb-2 truncate font-mono text-xs text-gray-400 dark:text-slate-500" title="${esc(p.log_file)}">${esc(p.log_file)}</p>`;
+        html += '<pre id="bg-log-content" class="max-h-80 min-h-[9rem] overflow-auto rounded-xl border border-white/10 bg-slate-950 p-4 font-mono text-[11px] leading-5 text-emerald-300" aria-label="Background process log output" aria-live="polite"><span class="flex items-center justify-center py-8 text-slate-500"><svg class="mr-2 h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle class="opacity-25" cx="12" cy="12" r="9" stroke-width="3"></circle><path class="opacity-75" stroke-width="3" stroke-linecap="round" d="M21 12a9 9 0 00-9-9"></path></svg>Loading live output...</span></pre></div>';
+    } else {
+        html += '<div class="flex flex-wrap items-center gap-4 border-t border-gray-200 pt-5 dark:border-white/10"><div class="flex items-center gap-3"><svg class="h-5 w-5 flex-shrink-0 text-gray-400 dark:text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.3 4.7l-7.6 13.2A2 2 0 004.4 21h15.2a2 2 0 001.7-3.1L13.7 4.7a2 2 0 00-3.4 0z"/></svg><span class="font-bold text-gray-700 dark:text-slate-200">Live output unavailable</span></div><span class="hidden h-8 w-px bg-gray-200 sm:block dark:bg-white/10"></span><span class="text-sm text-gray-500 dark:text-slate-500">This process was started without a log file.</span></div>';
+    }
+
+    html += '</div>';
+    title.textContent = 'Background Process';
+    body.innerHTML = html;
+    backdrop.classList.remove('hidden');
+    modal.classList.remove('hidden');
+    if (p.log_file) _fetchBgLog();
+    setTimeout(() => {
+        const closeButton = modal.querySelector('button[aria-label="Close background process details"]');
+        if (closeButton) closeButton.focus();
+    }, 50);
+}
+
+async function copyBgProcessCommand() {
+    const p = _bgProcessesData[_bgProcessModalJobId];
+    const button = document.getElementById('bg-process-copy-btn');
+    const label = document.getElementById('bg-process-copy-label');
+    if (!p || !button || !label) return;
+    let textarea = null;
+    try {
+        if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(p.command || '');
+        } else {
+            textarea = document.createElement('textarea');
+            textarea.value = p.command || '';
+            textarea.setAttribute('readonly', '');
+            textarea.className = 'fixed left-[-9999px] top-0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            if (!document.execCommand('copy')) throw new Error('Copy command failed');
+        }
+        label.textContent = 'Copied';
+        button.classList.add('border-emerald-500/50', 'text-emerald-300');
+        setTimeout(() => { label.textContent = 'Copy'; button.classList.remove('border-emerald-500/50', 'text-emerald-300'); }, 1800);
+    } catch (error) {
+        label.textContent = 'Copy failed';
+        button.classList.add('border-red-500/50', 'text-red-300');
+        setTimeout(() => { label.textContent = 'Copy'; button.classList.remove('border-red-500/50', 'text-red-300'); }, 2200);
+    } finally {
+        if (textarea) textarea.remove();
+    }
+}
+
+function closeBgProcessModal() {
+    const backdrop = document.getElementById('bg-process-modal-backdrop');
+    const modal = document.getElementById('bg-process-modal');
+    backdrop.classList.add('hidden');
+    modal.classList.add('hidden');
+    _bgProcessModalJobId = null;
+    _stopBgLogPolling();
+    if (_bgProcessModalTrigger && document.contains(_bgProcessModalTrigger)) _bgProcessModalTrigger.focus();
+    _bgProcessModalTrigger = null;
+}
+
+function _fetchBgLog() {
+    const p = _bgProcessesData[_bgProcessModalJobId];
+    if (!p || !p.log_file) return;
+    if (!currentAgentId) return;
+
+    let logUrl = `/api/agents/${encodeURIComponent(currentAgentId)}/bg-job/log?file=${encodeURIComponent(p.log_file)}&lines=200`;
+    if (p.session_id) logUrl += `&session_id=${encodeURIComponent(p.session_id)}`;
+    fetch(logUrl)
+        .then(res => {
+            if (!res.ok) throw new Error('Failed to load log');
+            return res.json();
+        })
+        .then(data => {
+            const pre = document.getElementById('bg-log-content');
+            if (!pre) return;
+            if (data.content && data.content.length > 0) {
+                pre.textContent = data.content.join('\n');
+            } else {
+                pre.innerHTML = '<span class="text-gray-500 italic">(empty log)</span>';
+            }
+            pre.scrollTop = pre.scrollHeight;
+
+            // Show live badge
+            const badge = document.getElementById('bg-log-live-badge');
+            if (badge) { badge.classList.remove('hidden'); badge.classList.add('inline-flex'); }
+
+            // Update refreshed time
+            const refreshed = document.getElementById('bg-log-refreshed');
+            if (refreshed) refreshed.textContent = 'refreshed just now';
+
+            // Schedule next poll
+            _stopBgLogPolling();
+            _bgLogPollTimer = setTimeout(_fetchBgLog, 3000);
+        })
+        .catch(err => {
+            const pre = document.getElementById('bg-log-content');
+            if (pre) pre.innerHTML = `<span class="text-red-400 italic">Failed to load log: ${esc(err.message)}</span>`;
+            // Retry after longer delay
+            _stopBgLogPolling();
+            _bgLogPollTimer = setTimeout(_fetchBgLog, 5000);
+        });
+}
+
+function _stopBgLogPolling() {
+    if (_bgLogPollTimer) { clearTimeout(_bgLogPollTimer); _bgLogPollTimer = null; }
+}
+
+let lastSummaryText = null;
+let _sessionStateData = {};
+let _summaryRefreshTimer = null;
+
+function _renderSessionStateSnapshot(stateData) {
+    let planHtml = '';
+    if (stateData.mode) {
+        const modeColor = stateData.mode === 'execute' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700';
+        planHtml += `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${modeColor}">${esc(stateData.mode)}</span> `;
+    }
+    if (stateData.plan_file) {
+        planHtml += `<button class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 ml-1 cursor-pointer hover:underline hover:bg-purple-200 dark:hover:bg-purple-800 transition-colors border-0" onclick="openPlanModal('${esc(stateData.plan_file)}')" title="Click to view plan">📋 ${esc(stateData.plan_file)}</button> `;
+    }
+    if (stateData.tasks && stateData.tasks.length > 0) {
+        const icons = {pending: '\u2610', in_progress: '\u27f3', done: '\u2713'};
+        const iconColors = {pending: 'text-gray-400', in_progress: 'text-amber-500', done: 'text-green-500'};
+        const staleTaskIds = new Set(Array.isArray(stateData.stale_task_ids) ? stateData.stale_task_ids : []);
+        const staleBefore = Date.now() - 180000;
+        planHtml += '<div class="mt-2"><div class="text-gray-500 dark:text-gray-400 font-medium mb-1 text-xs uppercase tracking-wide">Tasks</div><ul class="space-y-0.5">';
+        for (const t of stateData.tasks) {
+            const active = t.status === 'in_progress';
+            const startedAt = Number(t.in_progress_since);
+            const stale = active && (staleTaskIds.has(t.id) || (startedAt > 0 && startedAt * 1000 <= staleBefore));
+            const spinnerSvg = '<svg class="task-active-icon animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2.5" stroke-opacity="0.2"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="40 60"/></svg>';
+            const icon = active ? spinnerSvg : (icons[t.status] || '\u2610');
+            const color = iconColors[t.status] || 'text-gray-400';
+            const textClass = t.status === 'done' ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200';
+            const iconCls = `${color} inline-flex items-center justify-center w-4 h-4 text-xs flex-shrink-0`;
+            const textCls = active ? 'task-active-text text-xs' : `${textClass} text-xs`;
+            const staleBadge = stale ? '<span class="text-[10px] font-medium text-amber-700 dark:text-amber-300" title="This task has been in progress for a while">stale</span>' : '';
+            planHtml += `<li class="flex items-start gap-1.5"><span class="${iconCls}">${icon}</span><span class="${textCls}">${esc(t.text)}</span>${staleBadge}</li>`;
+        }
+        planHtml += '</ul></div>';
+    }
+    planHtml += buildBgProcessesHtml(stateData.background_processes);
+
+    const skills = Array.isArray(stateData.loaded_skills)
+        ? stateData.loaded_skills.map(skill => typeof skill === 'string'
+            ? {skill_id: skill, name: skill}
+            : skill)
+        : [];
+    const badges = _buildSkillBadges(skills);
+    ['', 'mobile-'].forEach(prefix => {
+        const ctxEl = document.getElementById(prefix + 'SessionContext');
+        const planEl = document.getElementById(prefix + 'SessionPlan');
+        const skillsEl = document.getElementById(prefix + 'SessionSkills');
+        if (ctxEl) ctxEl.innerHTML = buildContextUsageHtml(stateData.context_usage);
+        if (planEl) planEl.innerHTML = planHtml ? `<div class="mb-3 pb-3 border-b border-gray-100 dark:border-gray-600">${planHtml}</div>` : '';
+        if (skillsEl) skillsEl.innerHTML = badges.hasBadges ? '<div class="pt-2 border-t border-gray-100 dark:border-gray-600"><div class="text-gray-500 dark:text-gray-400 font-medium mb-1 text-xs uppercase tracking-wide">📜 ' + badges.count + ' Skills:</div><div class="flex flex-wrap gap-1 mb-3 pb-3 border-b border-gray-100 dark:border-gray-600">' + badges.html + '</div></div>' : '';
+    });
+}
+
+function _renderSessionSummary(data) {
+    const metaText = data.summary
+        ? `${data.message_count} msgs summarized` + (data.updated_at ? ` · ${formatTime(data.updated_at)}` : '')
+        : null;
+    ['', 'mobile-'].forEach(prefix => {
+        const summaryEl = document.getElementById(prefix + 'SessionSummary');
+        const meta = document.getElementById(prefix + 'summary-meta');
+        if (summaryEl && data.summary) {
+            summaryEl.innerHTML = '<div class="recap-prose">' + marked.parse(data.summary) + '</div>';
+            ui.addCopyButtons(summaryEl);
+            if (meta) {
+                meta.textContent = metaText || '';
+                meta.classList.remove('hidden');
+            }
+        } else if (summaryEl) {
+            summaryEl.innerHTML = '<p class="text-xs text-gray-400 italic">No summary yet.</p>';
+            if (meta) meta.classList.add('hidden');
+        }
+    });
+    lastSummaryText = data.summary || null;
+}
+
+async function loadSessionSummary() {
+    if (!currentSessionId) return;
+    try {
+        const sumRes = await fetch(`/api/sessions/${currentSessionId}/summary`);
+        if (sumRes.ok) _renderSessionSummary(await sumRes.json());
+    } catch(e) { /* ignore */ }
+}
+
+function scheduleSessionSummaryRefresh() {
+    clearTimeout(_summaryRefreshTimer);
+    _summaryRefreshTimer = setTimeout(() => {
+        _summaryRefreshTimer = null;
+        loadSessionSummary();
+    }, 1000);
+}
+
+async function forceRecap(btn) {
+    if (!currentSessionId) return;
+    const original = btn.textContent;
+    btn.textContent = '⏳';
+    btn.disabled = true;
+    try {
+        await fetch(`/api/sessions/${currentSessionId}/summarize`, { method: 'POST' });
+        // Poll until summary updates (max ~15s)
+        const before = lastSummaryText;
+        for (let i = 0; i < 15; i++) {
+            await new Promise(r => setTimeout(r, 1000));
+            await loadSessionSummary();
+            if (lastSummaryText !== before) break;
+        }
+    } catch(e) { /* ignore */ } finally {
+        btn.textContent = original;
+        btn.disabled = false;
+    }
+}
+
+function clearSummaryPanel() {
+    clearTimeout(_summaryRefreshTimer);
+    _summaryRefreshTimer = null;
+    ['', 'mobile-'].forEach(prefix => {
+        const ctxEl = document.getElementById(prefix + 'SessionContext');
+        const planEl = document.getElementById(prefix + 'SessionPlan');
+        const skillsEl = document.getElementById(prefix + 'SessionSkills');
+        const summaryEl = document.getElementById(prefix + 'SessionSummary');
+        const meta = document.getElementById(prefix + 'summary-meta');
+        if (ctxEl) ctxEl.innerHTML = '';
+        if (planEl) planEl.innerHTML = '';
+        if (skillsEl) skillsEl.innerHTML = '';
+        if (summaryEl) summaryEl.innerHTML = '<p class="text-xs text-gray-400 italic">No summary yet.</p>';
+        if (meta) meta.classList.add('hidden');
+    });
+    lastSummaryText = null;
+}
+
+// ==================== Agent State ====================
+
+async function loadAgentState() {
+    if (!currentAgentId) return;
+    const userId = document.getElementById('hdr-user')?.textContent || 'web_test';
+    try {
+        const url = `/api/agents/${currentAgentId}/chat/state?user_id=${encodeURIComponent(userId)}&session_id=${encodeURIComponent(currentSessionId || '')}`;
+        const response = await fetch(url);
+        if (!response.ok) return;
+        _sessionStateData = await response.json();
+        _renderSessionStateSnapshot(_sessionStateData);
+        renderAgentState(
+            currentAgentId,
+            userId,
+            ['agent-state-content', 'mobile-agent-state-content'],
+            currentSessionId,
+            _sessionStateData
+        );
+    } catch(e) { /* ignore */ }
+}
+
+function clearAgentStatePanel() {
+    _sessionStateData = {};
+    clearAgentState(['agent-state-content', 'mobile-agent-state-content']);
+}
+
+function _refreshTaskLifecycleSnapshot(detail) {
+    if (Array.isArray(detail.tasks)) _sessionStateData.tasks = detail.tasks;
+    if (Array.isArray(detail.task_ids)) _sessionStateData.stale_task_ids = detail.task_ids;
+    else if (Array.isArray(detail.tasks)) _sessionStateData.stale_task_ids = [];
+    _renderSessionStateSnapshot(_sessionStateData);
+}
+
+document.addEventListener('evonic:task-auto-transition', function(event) {
+    const detail = event.detail || {};
+    _refreshTaskLifecycleSnapshot(detail);
+    const count = Array.isArray(detail.task_ids) ? detail.task_ids.length : 0;
+    showToast(count === 1 ? 'Task status updated automatically' : 'Task statuses updated automatically');
+});
+
+document.addEventListener('evonic:tasks-stale', function(event) {
+    _refreshTaskLifecycleSnapshot(event.detail || {});
+});
+
+document.addEventListener('evonic:agent-state-changed', function(event) {
+    const detail = event.detail || {};
+    const stateKeys = ['mode', 'plan_file', 'tasks', 'loaded_skills'];
+    const hasStateSnapshot = stateKeys.some(key => Object.prototype.hasOwnProperty.call(detail, key));
+
+    if (hasStateSnapshot) {
+        for (const key of stateKeys) {
+            if (Object.prototype.hasOwnProperty.call(detail, key)) _sessionStateData[key] = detail[key];
+        }
+        _renderSessionStateSnapshot(_sessionStateData);
+        renderAgentState(
+            currentAgentId,
+            null,
+            ['agent-state-content', 'mobile-agent-state-content'],
+            currentSessionId,
+            _sessionStateData
+        );
+    } else {
+        // ATG and non-stream callers still emit the legacy event without a snapshot.
+        loadAgentState();
+    }
+    scheduleSessionSummaryRefresh();
+});
+
+function toggleMobileSummary() {
+    const overlay = document.getElementById('mobile-summary-overlay');
+    if (overlay.classList.contains('hidden')) {
+        overlay.classList.remove('hidden');
+    } else {
+        overlay.classList.add('hidden');
+    }
+}
+
+function closeMobileSummary() {
+    document.getElementById('mobile-summary-overlay').classList.add('hidden');
+}
+
+function toggleSummary() {
+    const spw = document.getElementById('side-panels-wrapper');
+    const isMobile = window.innerWidth < 768;
+    if (isMobile) {
+        toggleMobileSummary();
+    } else {
+        // Toggle desktop wrapper
+        if (spw.classList.contains('lg:flex')) {
+            hideSummaryPanel();
+        } else {
+            spw.classList.remove('hidden');
+            spw.classList.add('lg:flex');
+            loadSessionSummary();
+        }
+    }
+}
+
+function hideSummaryPanel() {
+    document.getElementById('side-panels-wrapper').classList.remove('lg:flex');
+    document.getElementById('side-panels-wrapper').classList.add('hidden');
+    closeMobileSummary();
+}
+
+function showMobileSummaryBtn(show) {
+    const btn = document.getElementById('mobile-summary-btn');
+    if (btn) {
+        if (show) btn.classList.remove('hidden');
+        else btn.classList.add('hidden');
+    }
+}
+
+// ==================== Helpers ====================
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function truncate(s, n) { return s && s.length > n ? s.substring(0, n) + '...' : (s || ''); }
+
+function explorerDisplayName(s) {
+    // Unified matcher for both sub-agent (_sub_N) and explorer (_explorer_N).
+    // Sub-agents and explorers are in-memory only — absent from the agents table —
+    // so agent_name falls back to the raw agent_id via COALESCE(ag.name, si.agent_id).
+    // Patterns checked in order: agent_name, external_user_id, agent_id, session_id.
+    // Three display categories:
+    //   Regular agent (human ↔ agent):   "Linus"
+    //   Sub-agent   (agent ↔ sub):       "Linus Torvalds - Sub-agent #1"
+    //   Explorer    (agent ↔ explorer):  "Linus Torvalds - Explorer #1"
+    //   Organizer   (agent ↔ organizer): "Linus Torvalds - Organizer #1"
+
+    const KIND = /_(explorer|organizer|sub)_(\d+)/;           // anywhere in string
+    const KIND_END = /_(explorer|organizer|sub)_(\d+)$/;      // at end only (agent_name fallback)
+    const labelFor = k => k === 'explorer' ? 'Explorer' : k === 'organizer' ? 'Organizer' : 'Sub-agent';
+
+    const an = s.agent_name || 'Unknown';
+    const pn = s.peer_agent_name;  // null/undefined when peer not in agents table
+
+    if (an) {
+        const m = an.match(KIND_END);
+        if (m) return esc(pn || 'Unknown') + ' - ' + labelFor(m[1]) + ' #' + m[2];
+    }
+
+    const euM = (s.external_user_id || '').match(KIND);
+    if (euM) return esc(an) + ' - ' + labelFor(euM[1]) + ' #' + euM[2];
+
+    const aiM = (s.agent_id || '').match(KIND);
+    if (aiM) return esc(pn || an) + ' - ' + labelFor(aiM[1]) + ' #' + aiM[2];
+
+    // Parent ↔ explorer where the marker only survives in the session id
+    // (e.g. id "linus_explorer_1-0bcfaa63"); the parent is this session's agent.
+    const idM = (s.id || '').match(KIND);
+    if (idM) return esc(an) + ' - ' + labelFor(idM[1]) + ' #' + idM[2];
+
+    // Regular inter-agent (both in agents table) or single-agent session
+    if (pn) return [esc(an), esc(pn)].sort().join(' - ');
+    return esc(an);
+}
+
+function userIdColorClass(userId) {
+    if (!userId) return '';
+    if (userId.startsWith('__system__')) return 'user-id-system';
+    if (userId.startsWith('__agent__')) return 'user-id-agent';
+    return 'user-id-human';
+}
+
+function channelBadge(type) {
+    if (type === 'telegram') return '<span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-600 font-medium">TG</span>';
+    if (type === 'whatsapp') return '<span class="text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-600 font-medium">WA</span>';
+    if (type === 'discord') return '<span class="text-[10px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-600 font-medium">DC</span>';
+    if (type) return `<span class="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-200 font-medium">${esc(type)}</span>`;
+    return '<span class="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-600 text-gray-400 dark:text-gray-200 font-medium">Web</span>';
+}
+
+function timeAgo(ts) {
+    if (!ts) return '';
+    const diff = (Date.now() - new Date(ts + (ts.includes('Z') ? '' : 'Z')).getTime()) / 1000;
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    return Math.floor(diff / 86400) + 'd ago';
+}
+
+function formatTime(ts) {
+    if (!ts) return '';
+    const d = new Date(ts + (ts.includes('Z') ? '' : 'Z'));
+    return d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+}
+
+// ==================== Tabs ====================
+
+function switchTab(tab) {
+    const chatTab = document.getElementById('tab-chat');
+    const settingsTab = document.getElementById('tab-settings');
+    const chatBtn = document.getElementById('tab-chat-btn');
+    const settingsBtn = document.getElementById('tab-settings-btn');
+
+    const activeClass = 'border-indigo-500 text-indigo-600';
+    const inactiveClass = 'border-transparent text-gray-500 hover:text-gray-700';
+
+    if (tab === 'settings') {
+        chatTab.classList.add('hidden');
+        settingsTab.classList.remove('hidden');
+        chatBtn.className = chatBtn.className.replace(activeClass, inactiveClass);
+        settingsBtn.className = settingsBtn.className.replace(inactiveClass, activeClass);
+        loadSettingsState();
+    } else {
+        settingsTab.classList.add('hidden');
+        chatTab.classList.remove('hidden');
+        settingsBtn.className = settingsBtn.className.replace(activeClass, inactiveClass);
+        chatBtn.className = chatBtn.className.replace(inactiveClass, activeClass);
+    }
+}
+
+// ==================== Settings ====================
+
+async function loadSettingsState() {
+    try {
+        const res = await fetch('/api/settings/events-dispatch');
+        const data = await res.json();
+        document.getElementById('events-dispatch-toggle').checked = data.enabled;
+    } catch(e) { /* ignore */ }
+    // Load chat perspective from localStorage (migrate legacy 'bot'/'user' to 'B'/'A')
+    const stored = localStorage.getItem('evonic_chat_perspective');
+    if (stored === 'B' || stored === 'agent') {
+        _chatPerspective = 'B';
+    } else {
+        _chatPerspective = 'A';
+    }
+    document.getElementById('chat-perspective-toggle').checked = _chatPerspective === 'A';
+    chatUI.setPerspective(_chatPerspective);
+    updateReplyPlaceholder();
+}
+
+function toggleChatPerspective(aMode) {
+    _chatPerspective = aMode ? 'A' : 'B';
+    localStorage.setItem('evonic_chat_perspective', _chatPerspective);
+    chatUI.setPerspective(aMode ? 'A' : 'B');
+    updateReplyPlaceholder();
+    showToast(aMode ? 'Messages will appear as A (right side)' : 'Messages will appear as B (left side)');
+}
+
+function updateReplyPlaceholder() {
+    const input = document.getElementById('reply-input');
+    if (input) {
+        input.placeholder = _chatPerspective === 'A'
+            ? 'Type a reply as A (right side)...'
+            : 'Type a reply as B (left side)...';
+    }
+    // Show/hide attach button based on perspective and agent's attachments_enabled setting
+    const attachBtn = document.getElementById('attach-btn');
+    if (attachBtn) {
+        if (_chatPerspective === 'A' && currentAttachmentsEnabled) {
+            attachBtn.classList.remove('hidden');
+        } else {
+            attachBtn.classList.add('hidden');
+            clearFileInput();
+        }
+    }
+}
+
+async function clearAllSessions() {
+    if (!await showConfirm({
+        title: 'Clear All Sessions',
+        message: 'This will permanently delete ALL chat sessions, messages, summaries, and their attachments across ALL agents. This cannot be undone.',
+        confirmText: 'Clear All'
+    })) return;
+
+    const res = await fetch('/api/sessions/clear-all', {method: 'POST'});
+    const data = await res.json();
+    if (data.success) {
+        // Reset chat view
+        stopPolling();
+        currentSessionId = null;
+        lastChatTs = 0;
+        allSessions = [];
+        renderSessionList();
+        document.getElementById('chat-header').classList.add('hidden');
+        document.getElementById('reply-bar').classList.add('hidden');
+        document.getElementById('chat-messages').innerHTML = '<div id="empty-state" class="flex items-center justify-center h-full text-gray-400 text-sm">Select a session to view conversation</div>';
+        document.getElementById('side-panels-wrapper').classList.remove('lg:flex');
+        document.getElementById('side-panels-wrapper').classList.add('hidden');
+        showMobileSummaryBtn(false);
+        clearSummaryPanel();
+        showToast('All sessions cleared successfully');
+    }
+}
+
+async function clearAllAttachments() {
+    if (!await showConfirm({
+        title: 'Clear All Attachments',
+        message: 'This will permanently delete EVERY stored attachment (files and database rows) across ALL agents and sessions. The conversations themselves will be kept. This cannot be undone.',
+        confirmText: 'Clear All'
+    })) return;
+
+    try {
+        const res = await fetch('/api/attachments/clear-all', {method: 'POST'});
+        const data = await res.json();
+        if (data.success) {
+            const freedMb = data.freed_bytes ? (data.freed_bytes / (1024 * 1024)).toFixed(2) : '0.00';
+            showToast(`Cleared ${data.deleted || 0} attachments (${freedMb} MB freed)`);
+        } else {
+            showToast('Failed to clear attachments', true);
+        }
+    } catch (e) {
+        showToast('Failed to clear attachments', true);
+    }
+}
+
+async function toggleEventsDispatch(enabled) {
+    try {
+        await fetch('/api/settings/events-dispatch', {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({enabled})
+        });
+        showToast(enabled ? 'Events dispatch enabled' : 'Events dispatch disabled');
+    } catch(e) {
+        showToast('Failed to update setting', true);
+    }
+}
+
+function showToast(message, isError) {
+    const existing = document.getElementById('settings-toast');
+    if (existing) existing.remove();
+    const toast = document.createElement('div');
+    toast.id = 'settings-toast';
+    toast.className = `fixed bottom-6 right-6 px-4 py-2.5 rounded-lg text-sm font-medium shadow-lg z-50 transition-opacity ${isError ? 'bg-red-500 text-white' : 'bg-gray-800 text-white'}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 2500);
+}
+
+// ==================== Fullscreen ====================
+
+let _sessionChatFullscreen = false;
+
+function toggleSessionChatFullscreen() {
+    const $tab = $('#tab-chat');
+    // The sessions tab bar is the flex-shrink-0 sibling above #tab-chat
+    const $tabBar = $tab.siblings('.flex-shrink-0');
+    _sessionChatFullscreen = !_sessionChatFullscreen;
+
+    if (_sessionChatFullscreen) {
+        $tab.addClass('chat-fullscreen');
+        $tabBar.hide();
+        $('#mobile-search').closest('.md\\:hidden').hide();
+        $('body').css('overflow', 'hidden');
+        $('#session-fs-expand-icon').addClass('hidden');
+        $('#session-fs-collapse-icon').removeClass('hidden');
+    } else {
+        $tab.removeClass('chat-fullscreen');
+        $tabBar.show();
+        $('#mobile-search').closest('.md\\:hidden').show();
+        $('body').css('overflow', '');
+        $('#session-fs-expand-icon').removeClass('hidden');
+        $('#session-fs-collapse-icon').addClass('hidden');
+    }
+
+    requestAnimationFrame(function () { chatUI.scrollToBottom(); });
+}
+
+$(document).on('keydown', function (e) {
+    if (e.key === 'Escape' && _sessionChatFullscreen) toggleSessionChatFullscreen();
+});
+
+// ==================== Init ====================
+// Load chat perspective from localStorage on page load
+(function initChatPerspective() {
+    const stored = localStorage.getItem('evonic_chat_perspective');
+    if (stored === 'B' || stored === 'agent') {
+        _chatPerspective = 'B';
+    } else {
+        _chatPerspective = 'A';
+    }
+    document.getElementById('chat-perspective-toggle').checked = _chatPerspective === 'A';
+    chatUI.setPerspective(_chatPerspective);
+    updateReplyPlaceholder();
+})();
+loadSessions();
+startSidebarPolling();
+
+// Auto-open last visited session on page load
+(async () => {
+    try {
+        const lastSession = sessionStorage.getItem(_LAST_SESSION_KEY);
+        if (lastSession) {
+            // Wait a brief moment for session list to load
+            await new Promise(r => setTimeout(r, 300));
+            selectSession(lastSession);
+        }
+    } catch (_) {}
+})();
+
+// Cleanup on page leave
+window.addEventListener('beforeunload', () => { stopPolling(); disconnectSessionStream(); clearTimeout(sidebarPollTimer); });
+
+// ==================== Plan File Modal ====================
+
+let _planModalFetchedFor = null; // track which plan file was last fetched (avoid re-fetch on re-open)
+let _planModalRawContent = null;  // raw markdown content for edit mode
+let _planModalCurrentTab = 'preview';  // active tab
+
+function openPlanModal(planFile) {
+    if (!currentAgentId || !currentSessionId) return;
+    const backdrop = document.getElementById('plan-modal-backdrop');
+    const modal = document.getElementById('plan-modal');
+    const content = document.getElementById('plan-modal-content');
+    const textarea = document.getElementById('plan-modal-textarea');
+    const saveBtn = document.getElementById('plan-modal-save-btn');
+
+    // Reset to preview tab on open
+    switchPlanTab('preview', /* silent */ true);
+
+    // Show modal immediately with loading state
+    backdrop.classList.remove('hidden');
+    modal.classList.remove('hidden');
+    content.innerHTML = '<div class="flex items-center justify-center py-12 text-gray-400"><svg class="animate-spin h-6 w-6 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span class="text-sm">Loading plan...</span></div>';
+    textarea.value = '';
+    textarea.classList.add('hidden');
+    content.classList.remove('hidden');
+    saveBtn.classList.add('hidden');
+
+    // Focus trap: focus the close button inside modal
+    setTimeout(function() {
+        var closeBtn = modal.querySelector('button[aria-label="Close plan modal"]');
+        if (closeBtn) closeBtn.focus();
+    }, 50);
+
+    // Fetch plan file content from API (cache per file to avoid re-fetch)
+    if (_planModalFetchedFor === planFile) {
+        // Already cached — just re-render preview
+        textarea.value = _planModalRawContent || '';
+        return;
+    }
+    _planModalFetchedFor = planFile;
+
+    var url = '/api/agents/' + encodeURIComponent(currentAgentId) + '/plan-file?session_id=' + encodeURIComponent(currentSessionId);
+    fetch(url)
+        .then(function(res) {
+            if (!res.ok) throw new Error('Failed to load plan file');
+            return res.json();
+        })
+        .then(function(data) {
+            _planModalRawContent = data.content || '';
+            textarea.value = _planModalRawContent;
+            if (!data.content) {
+                content.innerHTML = '<div class="flex items-center justify-center py-12 text-gray-400"><span class="text-sm">\u26A0\uFE0F Plan file is empty.</span></div>';
+                return;
+            }
+            content.innerHTML = '<div class="recap-prose">' + marked.parse(data.content) + '</div>';
+            ui.addCopyButtons(content);
+        })
+        .catch(function(err) {
+            _planModalRawContent = null;
+            textarea.value = '';
+            content.innerHTML = '<div class="flex items-center justify-center py-12 text-red-400"><span class="text-sm">\u26A0\uFE0F Failed to load plan file: ' + esc(err.message) + '</span></div>';
+        });
+}
+
+function switchPlanTab(tab, silent) {
+    var previewTab = document.getElementById('plan-tab-preview');
+    var editTab = document.getElementById('plan-tab-edit');
+    var content = document.getElementById('plan-modal-content');
+    var textarea = document.getElementById('plan-modal-textarea');
+    var saveBtn = document.getElementById('plan-modal-save-btn');
+    var closeBtn = document.getElementById('plan-modal-close-btn');
+
+    if (!previewTab || !editTab) return;
+
+    if (tab === 'edit') {
+        _planModalCurrentTab = 'edit';
+        previewTab.className = 'px-3 py-1 text-xs font-medium rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors';
+        editTab.className = 'px-3 py-1 text-xs font-medium rounded-md bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300 transition-colors';
+        content.classList.add('hidden');
+        textarea.classList.remove('hidden');
+        saveBtn.classList.remove('hidden');
+        if (closeBtn) closeBtn.classList.add('hidden');
+        // Populate textarea from cache if not already loaded
+        if (!textarea.value && _planModalRawContent) textarea.value = _planModalRawContent;
+        setTimeout(function() { textarea.focus(); }, 50);
+    } else {
+        _planModalCurrentTab = 'preview';
+        previewTab.className = 'px-3 py-1 text-xs font-medium rounded-md bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300 transition-colors';
+        editTab.className = 'px-3 py-1 text-xs font-medium rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors';
+        content.classList.remove('hidden');
+        textarea.classList.add('hidden');
+        saveBtn.classList.add('hidden');
+        if (closeBtn) closeBtn.classList.remove('hidden');
+    }
+}
+
+function savePlanFile() {
+    var textarea = document.getElementById('plan-modal-textarea');
+    var saveBtn = document.getElementById('plan-modal-save-btn');
+    var newContent = textarea.value;
+
+    if (!currentAgentId || !currentSessionId) {
+        alert('No active session.');
+        return;
+    }
+
+    // Show saving state
+    var originalText = saveBtn.textContent;
+    saveBtn.textContent = 'Saving\u2026';
+    saveBtn.disabled = true;
+
+    var url = '/api/agents/' + encodeURIComponent(currentAgentId) + '/plan-file?session_id=' + encodeURIComponent(currentSessionId);
+    fetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: newContent })
+    })
+        .then(function(res) {
+            if (!res.ok) return res.json().then(function(err) { throw new Error(err.error || 'Save failed'); });
+            return res.json();
+        })
+        .then(function() {
+            _planModalRawContent = newContent;
+            // Re-render preview
+            var content = document.getElementById('plan-modal-content');
+            if (newContent) {
+                content.innerHTML = '<div class="recap-prose">' + marked.parse(newContent) + '</div>';
+                ui.addCopyButtons(content);
+            } else {
+                content.innerHTML = '<div class="flex items-center justify-center py-12 text-gray-400"><span class="text-sm">\u26A0\uFE0F Plan file is empty.</span></div>';
+            }
+            // Flash save button
+            var btnClasses = saveBtn.className;
+            saveBtn.textContent = '\u2713 Saved!';
+            saveBtn.style.backgroundColor = '#22c55e';
+            saveBtn.style.color = '#fff';
+            setTimeout(function() {
+                saveBtn.textContent = originalText;
+                saveBtn.disabled = false;
+                saveBtn.style.backgroundColor = '';
+                saveBtn.style.color = '';
+            }, 1500);
+            // Refresh session state
+            if (typeof refreshSessionState === 'function') {
+                refreshSessionState();
+            }
+        })
+        .catch(function(err) {
+            saveBtn.textContent = originalText;
+            saveBtn.disabled = false;
+            alert('Failed to save plan: ' + (err.message || 'Unknown error'));
+        });
+}
+
+function closePlanModal() {
+    document.getElementById('plan-modal-backdrop').classList.add('hidden');
+    document.getElementById('plan-modal').classList.add('hidden');
+    _planModalFetchedFor = null;
+    _planModalRawContent = null;
+    // Reset to preview tab for next open
+    if (_planModalCurrentTab !== 'preview') {
+        switchPlanTab('preview', /* silent */ true);
+    }
+}
+
+// Escape key to close modals, Ctrl+S / Cmd+S to save plan
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        var bgBackdrop = document.getElementById('bg-process-modal-backdrop');
+        if (bgBackdrop && !bgBackdrop.classList.contains('hidden')) {
+            closeBgProcessModal();
+            return;
+        }
+        var planBackdrop = document.getElementById('plan-modal-backdrop');
+        if (planBackdrop && !planBackdrop.classList.contains('hidden')) {
+            closePlanModal();
+        }
+    }
+    // Ctrl+S / Cmd+S to save in edit mode
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        var planBackdrop = document.getElementById('plan-modal-backdrop');
+        if (planBackdrop && !planBackdrop.classList.contains('hidden') && _planModalCurrentTab === 'edit') {
+            e.preventDefault();
+            savePlanFile();
+        }
+    }
+});
+</script>
+
+<!-- Plan File Modal -->
+<div id="plan-modal-backdrop" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4" onclick="closePlanModal()" role="presentation">
+    <div id="plan-modal" class="hidden bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-3xl flex flex-col overflow-hidden" style="max-height: 90vh;" role="dialog" aria-modal="true" aria-label="Plan file viewer" onclick="event.stopPropagation()">
+        <!-- Header with tabs -->
+        <div class="flex items-center justify-between px-5 py-3 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+            <div class="flex items-center gap-2 min-w-0">
+                <h3 id="plan-modal-title" class="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">📋 Plan File</h3>
+                <div class="flex items-center ml-3 bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5 flex-shrink-0">
+                    <button id="plan-tab-preview" onclick="switchPlanTab('preview')" class="px-3 py-1 text-xs font-medium rounded-md bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300 transition-colors">Preview</button>
+                    <button id="plan-tab-edit" onclick="switchPlanTab('edit')" class="px-3 py-1 text-xs font-medium rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">Edit</button>
+                </div>
+            </div>
+            <button onclick="closePlanModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 flex-shrink-0" aria-label="Close plan modal" title="Close (Esc)">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <!-- Preview content area -->
+        <div id="plan-modal-content" class="p-5 overflow-y-auto flex-1">
+            <div class="flex items-center justify-center py-12 text-gray-400">
+                <svg class="animate-spin h-6 w-6 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                <span class="text-sm">Loading plan...</span>
+            </div>
+        </div>
+        <!-- Edit textarea -->
+        <textarea id="plan-modal-textarea" class="hidden flex-1 p-5 font-mono text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-0 outline-none resize-none overflow-y-auto" placeholder="Write your plan in Markdown..."></textarea>
+        <!-- Footer -->
+        <div class="px-5 py-3 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center flex-shrink-0">
+            <span class="text-xs text-gray-400 dark:text-gray-500">Ctrl+S to save</span>
+            <div class="flex gap-2">
+                <button id="plan-modal-close-btn" onclick="closePlanModal()" class="px-4 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors">Close</button>
+                <button id="plan-modal-save-btn" onclick="savePlanFile()" class="hidden px-4 py-1.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Background Process Modal -->
+<div id="bg-process-modal-backdrop" class="hidden fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/70 p-0 backdrop-blur-sm sm:items-center sm:p-4" onclick="closeBgProcessModal()" role="presentation">
+    <div id="bg-process-modal" class="hidden flex max-h-[94vh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-gray-200 bg-white text-gray-900 shadow-2xl dark:border-white/10 dark:bg-slate-950 dark:text-slate-100 sm:max-h-[90vh] sm:rounded-2xl" role="dialog" aria-modal="true" aria-labelledby="bg-process-modal-title" onclick="event.stopPropagation()">
+        <header class="relative flex flex-shrink-0 items-start justify-between gap-4 border-b border-gray-200 px-5 py-4 dark:border-white/10 sm:px-6 sm:py-5">
+            <div class="flex min-w-0 items-center gap-4">
+                <span class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl border border-gray-200 bg-gray-100 text-gray-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-200 sm:h-12 sm:w-12"><svg class="h-5 w-5 sm:h-6 sm:w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 4h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z"/></svg></span>
+                <div class="min-w-0">
+                    <h3 id="bg-process-modal-title" class="truncate text-lg font-bold tracking-tight text-gray-900 dark:text-white sm:text-xl">Background Process</h3>
+                </div>
+            </div>
+            <div class="flex flex-shrink-0 items-center gap-2 sm:gap-3">
+                <button type="button" onclick="closeBgProcessModal()" class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-gray-50 text-gray-500 transition hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-300 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white dark:focus:ring-white/40" aria-label="Close background process details" title="Close (Esc)">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+        </header>
+        <div id="bg-process-modal-body" class="flex-1 overflow-y-auto overscroll-contain p-5 sm:p-6">
+            <div class="flex items-center justify-center py-12 text-gray-400 dark:text-slate-500"><svg class="mr-2 h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle class="opacity-25" cx="12" cy="12" r="9" stroke-width="3"></circle><path class="opacity-75" stroke-width="3" stroke-linecap="round" d="M21 12a9 9 0 00-9-9"></path></svg><span class="text-sm">Loading process details...</span></div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,856 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="p-4 md:p-6">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+        <div class="flex-1 w-full sm:w-auto">
+            <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100">Agents</h2>
+            <p class="text-sm text-gray-500 mt-1">Manage AI agents with custom prompts, tools, and channels</p>
+        </div>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div id="tabNav" class="flex border-b border-gray-200 dark:border-gray-700 mb-5">
+        <button id="tabBtnAgents" class="px-5 py-2.5 text-sm font-medium text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400 -mb-px transition-colors" onclick="switchTab('agents')">
+            Agents
+        </button>
+        <button id="tabBtnWorkplaces" class="px-5 py-2.5 text-sm font-medium text-gray-500 dark:text-gray-400 border-b-2 border-transparent hover:text-gray-700 dark:hover:text-gray-300 transition-colors" onclick="switchTab('workplaces')">
+            Workplaces
+        </button>
+    </div>
+
+    <!-- ========== AGENTS TAB ========== -->
+    <div id="tab-agents">
+        <div class="flex flex-col sm:flex-row gap-3 mb-6">
+            <div class="relative">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <input type="search" id="agent-search" name="agent_search_filter" placeholder="Search agents..." oninput="filterAgents()" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')"
+                       class="w-full sm:w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/10">
+            </div>
+            <button onclick="showCreateAgentModal()"
+                    class="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                New Agent
+            </button>
+            <button onclick="showImportAgentModal()"
+                    class="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2">
+                <i data-lucide="upload" class="w-4 h-4"></i>
+                Import Agent
+            </button>
+        </div>
+
+        <!-- Agents Grid -->
+        <div id="agents-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            <!-- Populated by JS -->
+        </div>
+
+        <div id="agents-empty" class="hidden text-center py-16 text-gray-400">
+            <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+            <p class="text-lg font-medium">No agents yet</p>
+            <p class="text-sm mt-1">Create your first agent to get started.</p>
+        </div>
+
+        <!-- Disabled Agents (collapsible, collapsed by default) -->
+        <div id="disabled-agents-section" class="hidden mt-8">
+            <button onclick="toggleDisabledAgents()" class="flex items-center gap-2 w-full text-left px-4 py-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors">
+                <svg id="disabled-chevron" class="w-4 h-4 text-gray-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                </svg>
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Disabled Agents</span>
+                <span id="disabled-count" class="text-xs text-gray-400 dark:text-gray-500 ml-1"></span>
+            </button>
+            <div id="disabled-agents-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mt-3 hidden"></div>
+        </div>
+    </div>
+
+    <!-- ========== WORKPLACES TAB ========== -->
+    <div id="tab-workplaces" class="hidden">
+        <div class="flex flex-col sm:flex-row gap-3 mb-6">
+            <div class="relative">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <input type="search" id="workplace-search" name="workplace_search_filter" placeholder="Search workplaces..." oninput="filterWorkplaces()" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')"
+                       class="w-full sm:w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/10">
+            </div>
+            <button onclick="showCreateWorkplaceModal()"
+                    class="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                New Workplace
+            </button>
+        </div>
+
+        <!-- Workplaces Grid -->
+        <div id="workplaces-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        <div id="workplaces-empty" class="hidden text-center py-16 text-gray-400">
+            <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+            <p class="text-lg font-medium">No workplaces yet</p>
+            <p class="text-sm mt-1">Create a workplace to assign execution environments to your agents.</p>
+        </div>
+    </div>
+</div>
+
+<!-- Create Agent Modal -->
+<div id="create-agent-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+    <div class="absolute inset-0 bg-black/50" onclick="closeCreateAgentModal()"></div>
+    <div class="relative bg-white dark:bg-gray-800 rounded-xl w-[90%] max-w-[450px] shadow-xl">
+        <div class="p-6">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">New Agent</h3>
+            <div class="mb-4">
+                <label class="block mb-1 text-gray-700 dark:text-gray-300 text-sm font-medium">Create from Skillset</label>
+                <select id="new-agent-skillset" onchange="applySkillsetToForm()"
+                        class="w-full p-2.5 border border-gray-300 rounded-md text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/10">
+                    <option value="">-- None (blank agent) --</option>
+                </select>
+                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Choose a template to auto-fill agent settings</p>
+            </div>
+            <div class="mb-4">
+                <label class="block mb-1 text-gray-700 dark:text-gray-300 text-sm font-medium">Agent ID *</label>
+                <input type="text" id="new-agent-id" placeholder="e.g., customer_service" class="w-full p-2.5 border border-gray-300 rounded-md text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/10">
+                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Alphanumeric and underscores only</p>
+            </div>
+            <div class="mb-4">
+                <label class="block mb-1 text-gray-700 dark:text-gray-300 text-sm font-medium">Name *</label>
+                <input type="text" id="new-agent-name" placeholder="e.g., Customer Service" class="w-full p-2.5 border border-gray-300 rounded-md text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/10">
+            </div>
+            <div class="mb-4">
+                <label class="block mb-1 text-gray-700 dark:text-gray-300 text-sm font-medium">Description</label>
+                <textarea id="new-agent-desc" rows="2" placeholder="Short description" class="w-full p-2.5 border border-gray-300 rounded-md text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/10"></textarea>
+            </div>
+        </div>
+        <div class="flex gap-3 justify-end px-6 pb-5">
+            <button onclick="closeCreateAgentModal()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">Cancel</button>
+            <button onclick="createAgent()" class="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-md text-sm font-medium transition-colors">Create</button>
+        </div>
+    </div>
+</div>
+
+<!-- Import Agent Modal -->
+<div id="import-agent-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+    <div class="absolute inset-0 bg-black/50" onclick="closeImportAgentModal()"></div>
+    <div class="relative bg-white dark:bg-gray-800 rounded-xl w-[92%] max-w-xl shadow-xl">
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Import Agent</h3>
+                <button onclick="closeImportAgentModal()" title="Close" class="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="flex border-b border-gray-200 dark:border-gray-700 mb-4" role="tablist">
+                <button id="import-file-tab" onclick="setImportMode('file')" class="px-4 py-2 text-sm font-medium text-indigo-600 border-b-2 border-indigo-600">File</button>
+                <button id="import-paste-tab" onclick="setImportMode('paste')" class="px-4 py-2 text-sm font-medium text-gray-500 border-b-2 border-transparent">Paste JSON</button>
+            </div>
+            <div id="import-file-panel">
+                <input id="import-agent-file" type="file" accept="application/json,.json" class="hidden" onchange="selectImportFile(this.files[0])">
+                <button id="import-drop-zone" type="button" onclick="document.getElementById('import-agent-file').click()"
+                        ondragover="handleImportDrag(event)" ondragleave="handleImportDrag(event)" ondrop="handleImportDrop(event)"
+                        class="w-full min-h-32 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg flex flex-col items-center justify-center gap-2 text-gray-500 dark:text-gray-400 hover:border-indigo-400 hover:text-indigo-600 transition-colors">
+                    <i data-lucide="file-json" class="w-7 h-7"></i>
+                    <span id="import-file-label" class="text-sm font-medium">Choose or drop a JSON file</span>
+                </button>
+            </div>
+            <div id="import-paste-panel" class="hidden">
+                <textarea id="import-agent-json" rows="8" spellcheck="false" placeholder="Paste exported agent JSON"
+                          class="w-full p-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md font-mono text-xs focus:border-indigo-500 focus:outline-none"></textarea>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+                <div>
+                    <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Agent ID</label>
+                    <input id="import-agent-id" type="text" placeholder="e.g., customer_service" pattern="[a-z0-9_]+" autocapitalize="none" spellcheck="false"
+                           title="Use lowercase letters, numbers, and underscores only"
+                           oninput="enforceLowerSnakeCase(this)"
+                           class="w-full p-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md text-sm focus:border-indigo-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Name override</label>
+                    <input id="import-agent-name" type="text" placeholder="Use exported name" class="w-full p-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md text-sm focus:border-indigo-500 focus:outline-none">
+                </div>
+            </div>
+            <p id="import-agent-error" class="hidden mt-3 text-sm text-red-600 dark:text-red-400"></p>
+            <div id="import-agent-warning" class="hidden mt-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200"></div>
+        </div>
+        <div class="flex gap-3 justify-end px-6 pb-5">
+            <button onclick="closeImportAgentModal()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700">Cancel</button>
+            <button id="import-agent-submit" onclick="importAgent()" class="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-50 text-white rounded-md text-sm font-medium">Import</button>
+        </div>
+    </div>
+</div>
+
+<!-- Create Workplace Modal -->
+<div id="create-workplace-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+    <div class="absolute inset-0 bg-black/50" onclick="closeCreateWorkplaceModal()"></div>
+    <div class="relative bg-white dark:bg-gray-800 rounded-xl w-[90%] max-w-md shadow-xl p-6">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">New Workplace</h3>
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name *</label>
+            <input id="new-workplace-name" type="text" placeholder="e.g., My Server"
+                   class="w-full p-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/10">
+        </div>
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type *</label>
+            <select id="new-workplace-type" onchange="onTypeChange()"
+                    class="w-full p-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md text-sm focus:border-indigo-500 focus:outline-none">
+                <option value="local">Local — local directory</option>
+                <option value="remote">Remote — SSH server</option>
+                <option value="tunnel">Tunnel — Evonet connector</option>
+                <option value="bwrap">Bwrap — sandboxed local directory (Linux)</option>
+            </select>
+        </div>
+
+        <!-- Local config (shared by local and bwrap types) -->
+        <div id="cfg-local" class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Workspace Path</label>
+            <input id="cfg-local-path" type="text" placeholder="/home/user/workspace"
+                   class="w-full p-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-md text-sm focus:border-indigo-500 focus:outline-none">
+            <p id="cfg-bwrap-note" class="hidden mt-1.5 text-xs text-gray-500 dark:text-gray-400">Commands run inside a bubblewrap sandbox (Linux only). The agent home persists at &lt;workspace&gt;/.home.</p>
+        </div>
+
+        <!-- Remote config -->
+        <div id="cfg-remote" class="hidden space-y-3 mb-4">
+            <div class="grid grid-cols-3 gap-2">
+                <div class="col-span-2">
+                    <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Host *</label>
+                    <input id="cfg-remote-host" type="text" placeholder="192.168.1.10"
+                           class="w-full p-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded text-sm focus:border-indigo-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Port</label>
+                    <input id="cfg-remote-port" type="number" value="22" min="1" max="65535"
+                           class="w-full p-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded text-sm focus:border-indigo-500 focus:outline-none">
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Username *</label>
+                <input id="cfg-remote-user" type="text" placeholder="ubuntu"
+                       class="w-full p-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded text-sm focus:border-indigo-500 focus:outline-none">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Auth Type</label>
+                <select id="cfg-remote-auth" onchange="onAuthTypeChange()"
+                        class="w-full p-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded text-sm focus:border-indigo-500 focus:outline-none">
+                    <option value="key">SSH Key</option>
+                    <option value="password">Password</option>
+                </select>
+            </div>
+            <div id="cfg-remote-key-row">
+                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Key Path</label>
+                <input id="cfg-remote-key" type="text" placeholder="/shared/.ssh/id_rsa"
+                       class="w-full p-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded text-sm focus:border-indigo-500 focus:outline-none">
+            </div>
+            <div id="cfg-remote-pass-row" class="hidden">
+                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Password</label>
+                <input id="cfg-remote-pass" type="password" placeholder="SSH password"
+                       class="w-full p-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded text-sm focus:border-indigo-500 focus:outline-none">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Remote Workspace Path</label>
+                <input id="cfg-remote-workspace" type="text" placeholder="/home/ubuntu/agent"
+                       class="w-full p-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded text-sm focus:border-indigo-500 focus:outline-none">
+            </div>
+        </div>
+
+        <!-- Tunnel config -->
+        <div id="cfg-tunnel" class="hidden mb-4">
+            <p class="text-sm text-gray-500 dark:text-gray-400">After creation, generate a pairing code and run <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded text-xs">evonet pair</code> on the target device.</p>
+            <div class="mt-3">
+                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Workspace Path (on target device)</label>
+                <input id="cfg-tunnel-workspace" type="text" placeholder="/home/user/evonic-agent"
+                       class="w-full p-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded text-sm focus:border-indigo-500 focus:outline-none">
+            </div>
+        </div>
+
+        <div class="flex gap-3 justify-end mt-4">
+            <button onclick="closeCreateWorkplaceModal()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">Cancel</button>
+            <button onclick="createWorkplace()" class="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-md text-sm font-medium transition-colors">Create</button>
+        </div>
+    </div>
+</div>
+
+<div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2"></div>
+
+<script>
+// ===================== TAB SWITCHING =====================
+
+let currentTab = 'agents';
+
+function switchTab(tab) {
+    currentTab = tab;
+    const tabAgents = document.getElementById('tab-agents');
+    const tabWorkplaces = document.getElementById('tab-workplaces');
+    const btnAgents = document.getElementById('tabBtnAgents');
+    const btnWorkplaces = document.getElementById('tabBtnWorkplaces');
+
+    if (tab === 'agents') {
+        tabAgents.classList.remove('hidden');
+        tabWorkplaces.classList.add('hidden');
+        btnAgents.className = 'px-5 py-2.5 text-sm font-medium text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400 -mb-px transition-colors';
+        btnWorkplaces.className = 'px-5 py-2.5 text-sm font-medium text-gray-500 dark:text-gray-400 border-b-2 border-transparent hover:text-gray-700 dark:hover:text-gray-300 transition-colors';
+    } else {
+        tabAgents.classList.add('hidden');
+        tabWorkplaces.classList.remove('hidden');
+        btnAgents.className = 'px-5 py-2.5 text-sm font-medium text-gray-500 dark:text-gray-400 border-b-2 border-transparent hover:text-gray-700 dark:hover:text-gray-300 transition-colors';
+        btnWorkplaces.className = 'px-5 py-2.5 text-sm font-medium text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400 -mb-px transition-colors';
+        if (!workplacesLoaded) loadWorkplaces();
+    }
+}
+
+// ===================== AGENTS =====================
+
+let agents = [];
+let skillsets = [];
+let busyAgents = {};
+let agentStatusEventsSubscribed = false;
+
+async function loadSkillsets() {
+    try {
+        const res = await fetch('/api/skillsets');
+        const data = await res.json();
+        skillsets = data.skillsets || [];
+        const select = document.getElementById('new-agent-skillset');
+        select.innerHTML = '<option value="">-- None (blank agent) --</option>' +
+            skillsets.map(s => `<option value="${esc(s.id)}">${esc(s.name || s.id)} — ${esc((s.description || '').substring(0, 50))}</option>`).join('');
+    } catch (e) {
+        console.error('Failed to load skillsets:', e);
+    }
+}
+
+function applySkillsetToForm() {
+    const skillId = document.getElementById('new-agent-skillset').value;
+    if (!skillId) return;
+    const skillset = skillsets.find(s => s.id === skillId);
+    if (!skillset) return;
+    document.getElementById('new-agent-name').value = skillset.name || '';
+    document.getElementById('new-agent-desc').value = skillset.description || '';
+}
+
+async function loadBusyAgents() {
+    try {
+        const res = await fetch('/api/agents/busy');
+        const data = await res.json();
+        busyAgents = {};
+        for (const id of Object.keys(data.busy || {})) busyAgents[id] = true;
+        // Apply initial busy state to already-rendered cards
+        for (const id of Object.keys(busyAgents)) updateAgentBusyBadge(id, true);
+    } catch (e) { /* ignore */ }
+}
+
+async function loadAgents() {
+    const res = await fetch('/api/agents');
+    const data = await res.json();
+    agents = data.agents || [];
+    renderAgents();
+    loadSkillsets();
+    loadBusyAgents();
+    subscribeAgentStatusEvents();
+}
+
+function renderAgents() {
+    const grid = document.getElementById('agents-grid');
+    const empty = document.getElementById('agents-empty');
+    const disabledSection = document.getElementById('disabled-agents-section');
+    const disabledGrid = document.getElementById('disabled-agents-grid');
+    const disabledCount = document.getElementById('disabled-count');
+    const search = document.getElementById('agent-search').value.toLowerCase().trim();
+    const filtered = search
+        ? agents.filter(a => (a.name || a.id).toLowerCase().includes(search) || (a.description || '').toLowerCase().includes(search))
+        : agents;
+    if (filtered.length === 0) {
+        grid.innerHTML = '';
+        disabledSection.classList.add('hidden');
+        empty.classList.remove('hidden');
+        empty.querySelector('p:first-of-type').textContent = search ? 'No agents found' : 'No agents yet';
+        empty.querySelector('p:last-of-type').textContent = search ? 'Try a different search term.' : 'Create your first agent to get started.';
+        return;
+    }
+    empty.classList.add('hidden');
+
+    // Separate enabled and disabled
+    const enabledAgents = [];
+    const disabledAgents = [];
+    for (const a of filtered) {
+        if (a.enabled !== false && a.enabled !== 0) {
+            enabledAgents.push(a);
+        } else {
+            disabledAgents.push(a);
+        }
+    }
+
+    // Pin super agent to top within each group
+    const sortFn = (a, b) => {
+        if (a.is_super && !b.is_super) return -1;
+        if (!a.is_super && b.is_super) return 1;
+        return (a.name || a.id).localeCompare(b.name || b.id);
+    };
+    enabledAgents.sort(sortFn);
+    disabledAgents.sort(sortFn);
+
+    const renderCard = (a) => {
+        const enabled = a.enabled !== false && a.enabled !== 0;
+        const superBadge = a.is_super
+            ? `<span class="text-xs text-red-500 dark:text-red-400 ml-1">&#9733;</span>`
+            : '';
+        const toggleSwitch = a.is_super
+            ? ''
+            : mkToggle({ checked: enabled, onChange: `toggleAgent('${a.id}', this.checked)`, extraClass: 'flex-shrink-0' });
+        const statusBadge = enabled
+            ? ''
+            : `<span class="inline-flex items-center gap-1 text-xs font-medium text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700/50 px-2 py-1 rounded-full">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l-2 2m7-7a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    Off
+               </span>`;
+        const busyBadge = busyAgents[a.id]
+            ? `<span class="busy-badge inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 px-2 py-1 rounded-full">
+                    <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                    Busy
+               </span>`
+            : '';
+        const waInfo = (window._waDisconnectedAgents || []).find(function (x) { return x.id === a.id; });
+        const waBadge = waInfo
+            ? '<span class="inline-flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/40 px-2 py-1 rounded-full">' +
+              (waInfo.status === 'qr_pending' ? 'QR Pending' : 'WA Disconnected') +
+              '</span>'
+            : '';
+        const settingsBtn = `<a href="/agents/${a.id}#general" class="text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-100 dark:hover:bg-gray-700 p-1 rounded transition-colors" title="Settings">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                </a>`;
+        const avatarUrl = `/api/agents/${a.id}/avatar?size=small`;
+        const initial = (a.name || a.id || '?').charAt(0).toUpperCase();
+        const hasCustomAvatar = a.avatar_path && a.avatar_path.trim() !== '';
+        const avatarHtml = hasCustomAvatar
+            ? `<img src="${avatarUrl}" alt="${esc(a.name || a.id)}" class="w-8 h-8 rounded-full object-cover flex-shrink-0 bg-indigo-50 dark:bg-indigo-900/20">`
+            : `<div class="w-8 h-8 rounded-full flex-shrink-0 bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-sm font-bold text-indigo-600 dark:text-indigo-300">${initial}</div>`;
+        return `
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow overflow-hidden" data-agent-id="${esc(a.id)}">
+            <div class="p-3">
+                <div class="flex items-start gap-2">
+                    ${avatarHtml}
+                    <div class="flex-1 min-w-0 cursor-pointer" onclick="window.location.href='/agents/${a.id}'">
+                        <div class="flex items-center gap-2 flex-wrap" data-badges="${esc(a.id)}">
+                            <h3 class="font-semibold text-sm ${a.is_super ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-gray-100'} truncate">${esc(a.name || a.id)}${superBadge}</h3>
+                            ${statusBadge}
+                            ${busyBadge}
+                            ${waBadge}
+                        </div>
+                        <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">ID: ${esc(a.id)}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mt-1">${esc(a.description || 'No description')}</p>
+                    </div>
+                    <div class="flex items-center gap-1 flex-shrink-0 mt-1">
+                        ${settingsBtn}
+                        ${toggleSwitch}
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    };
+
+    grid.innerHTML = enabledAgents.map(a => renderCard(a)).join('');
+
+    // Show/hide disabled section
+    if (disabledAgents.length === 0) {
+        disabledSection.classList.add('hidden');
+    } else {
+        disabledSection.classList.remove('hidden');
+        disabledCount.textContent = `(${disabledAgents.length})`;
+        disabledGrid.innerHTML = disabledAgents.map(a => renderCard(a)).join('');
+    }
+}
+
+function updateAgentBusyBadge(agentId, busy) {
+    const card = document.querySelector(`[data-agent-id="${agentId}"]`);
+    if (!card) return; // card not in DOM (e.g. filtered out by search)
+    const badges = card.querySelector(`[data-badges="${agentId}"]`);
+    if (!badges) return;
+    const existing = badges.querySelector('.busy-badge');
+    if (busy) {
+        if (!existing) {
+            const span = document.createElement('span');
+            span.className = 'busy-badge inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 px-2 py-1 rounded-full';
+            span.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span> Busy';
+            badges.appendChild(span);
+        }
+    } else {
+        if (existing) existing.remove();
+    }
+}
+
+function subscribeAgentStatusEvents() {
+    if (agentStatusEventsSubscribed) return;
+    agentStatusEventsSubscribed = true;
+    document.addEventListener('evonic:agent-busy-changed', function(e) {
+        const data = e.detail || {};
+        const agentId = data.agent_id;
+        if (!agentId) return;
+        if (data.busy) {
+            busyAgents[agentId] = true;
+        } else {
+            delete busyAgents[agentId];
+        }
+        updateAgentBusyBadge(agentId, data.busy);
+    });
+    document.addEventListener('evonic:agent-busy-resync', function(e) {
+        busyAgents = {};
+        for (const id of Object.keys(e.detail || {})) busyAgents[id] = true;
+        document.querySelectorAll('.busy-badge').forEach(function(b) {
+            const parent = b.closest('[data-badges]');
+            if (parent && !busyAgents[parent.getAttribute('data-badges')]) b.remove();
+        });
+        for (const id of Object.keys(busyAgents)) updateAgentBusyBadge(id, true);
+    });
+}
+
+window.addEventListener('pageshow', loadBusyAgents);
+
+function toggleDisabledAgents() {
+    const grid = document.getElementById('disabled-agents-grid');
+    const chevron = document.getElementById('disabled-chevron');
+    const isHidden = grid.classList.contains('hidden');
+    grid.classList.toggle('hidden');
+    chevron.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+}
+
+function filterAgents() {
+    renderAgents();
+}
+
+function showCreateAgentModal() {
+    document.getElementById('create-agent-modal').classList.remove('hidden');
+    document.getElementById('new-agent-id').value = '';
+    document.getElementById('new-agent-name').value = '';
+    document.getElementById('new-agent-desc').value = '';
+    document.getElementById('new-agent-skillset').value = '';
+    document.getElementById('new-agent-id').focus();
+}
+
+function closeCreateAgentModal() {
+    document.getElementById('create-agent-modal').classList.add('hidden');
+}
+
+let importMode = 'file';
+let importFileText = '';
+
+function showImportAgentModal() {
+    window.importMissingConfirmed = false;
+    document.getElementById('import-agent-modal').classList.remove('hidden');
+    document.getElementById('import-agent-id').value = '';
+    document.getElementById('import-agent-name').value = '';
+    document.getElementById('import-agent-json').value = '';
+    document.getElementById('import-agent-file').value = '';
+    document.getElementById('import-file-label').textContent = 'Choose or drop a JSON file';
+    importFileText = '';
+    setImportMode('file');
+    setImportError('');
+}
+
+function closeImportAgentModal() {
+    window.importMissingConfirmed = false;
+    document.getElementById('import-agent-warning').classList.add('hidden');
+    document.getElementById('import-agent-modal').classList.add('hidden');
+}
+
+function setImportMode(mode) {
+    importMode = mode;
+    const fileMode = mode === 'file';
+    document.getElementById('import-file-panel').classList.toggle('hidden', !fileMode);
+    document.getElementById('import-paste-panel').classList.toggle('hidden', fileMode);
+    document.getElementById('import-file-tab').className = `px-4 py-2 text-sm font-medium border-b-2 ${fileMode ? 'text-indigo-600 border-indigo-600' : 'text-gray-500 border-transparent'}`;
+    document.getElementById('import-paste-tab').className = `px-4 py-2 text-sm font-medium border-b-2 ${fileMode ? 'text-gray-500 border-transparent' : 'text-indigo-600 border-indigo-600'}`;
+    setImportError('');
+    if (!fileMode) document.getElementById('import-agent-json').focus();
+}
+
+function setImportError(message) {
+    const error = document.getElementById('import-agent-error');
+    error.textContent = message;
+    error.classList.toggle('hidden', !message);
+}
+
+function handleImportDrag(event) {
+    event.preventDefault();
+    event.currentTarget.classList.toggle('border-indigo-500', event.type === 'dragover');
+    event.currentTarget.classList.toggle('bg-indigo-50', event.type === 'dragover');
+}
+
+function handleImportDrop(event) {
+    event.preventDefault();
+    event.currentTarget.classList.remove('border-indigo-500', 'bg-indigo-50');
+    selectImportFile(event.dataTransfer.files[0]);
+}
+
+async function selectImportFile(file) {
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.json')) {
+        importFileText = '';
+        return setImportError('Select a .json file.');
+    }
+    try {
+        importFileText = await file.text();
+        document.getElementById('import-file-label').textContent = file.name;
+        setImportError('');
+    } catch (error) {
+        importFileText = '';
+        setImportError('The selected file could not be read.');
+    }
+}
+
+function enforceLowerSnakeCase(input) {
+    input.value = input.value.toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/_+/g, '_');
+}
+
+async function importAgent() {
+    const id = document.getElementById('import-agent-id').value.trim();
+    const name = document.getElementById('import-agent-name').value.trim();
+    const source = importMode === 'file' ? importFileText : document.getElementById('import-agent-json').value.trim();
+    if (!source) return setImportError(importMode === 'file' ? 'Select a JSON file.' : 'Paste exported agent JSON.');
+    if (id && !/^[a-z0-9_]+$/.test(id)) return setImportError('Agent ID must use lowercase letters, numbers, and underscores.');
+    let payload;
+    try {
+        payload = JSON.parse(source);
+    } catch (error) {
+        return setImportError(`Invalid JSON: ${error.message}`);
+    }
+    const button = document.getElementById('import-agent-submit');
+    const warning = document.getElementById('import-agent-warning');
+    button.disabled = true;
+    setImportError('');
+    try {
+        const response = await fetch('/api/agents/import', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({payload, ...(id ? {id} : {}), ...(name ? {name} : {}), ...(window.importMissingConfirmed ? {confirm_missing: true} : {})})
+        });
+        const data = await response.json();
+        if (response.status === 409 && data.warning) {
+            warning.textContent = `Unavailable dependencies will be skipped. Skills: ${(data.warning.skills || []).join(', ') || 'none'}. Tools: ${(data.warning.tools || []).join(', ') || 'none'}. Click Import again to confirm.`;
+            warning.classList.remove('hidden');
+            window.importMissingConfirmed = true;
+            return;
+        }
+        if (!response.ok) return setImportError(data.error || 'Agent import failed.');
+        window.location.href = `/agents/${encodeURIComponent(data.agent_id)}`;
+    } catch (error) {
+        setImportError('Network error. Please try again.');
+    } finally {
+        button.disabled = false;
+    }
+}
+
+async function createAgent() {
+    const id = document.getElementById('new-agent-id').value.trim();
+    const name = document.getElementById('new-agent-name').value.trim();
+    const description = document.getElementById('new-agent-desc').value.trim();
+    const skillsetId = document.getElementById('new-agent-skillset').value;
+    if (!id || !name) return alert('ID and Name are required.');
+    if (!/^[a-zA-Z0-9_]+$/.test(id)) return alert('ID must be alphanumeric with underscores only.');
+
+    let url, body;
+    if (skillsetId) {
+        url = `/api/skillsets/${skillsetId}/apply`;
+        body = JSON.stringify({id, name, description});
+    } else {
+        url = '/api/agents';
+        body = JSON.stringify({id, name, description});
+    }
+
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: body
+    });
+    const data = await res.json();
+    if (data.error) return alert(data.error);
+    closeCreateAgentModal();
+    window.location.href = `/agents/${id}`;
+}
+
+async function toggleAgent(agentId, enabled) {
+    const res = await fetch(`/api/agents/${agentId}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({enabled})
+    });
+    if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || 'Failed to toggle agent');
+        loadAgents();
+    }
+}
+
+async function deleteAgent(agentId, name) {
+    const confirmed = await showConfirm({
+        title: `Delete "${name}"?`,
+        message: 'This will delete the agent and remove all its files. This cannot be undone.',
+        confirmText: 'Delete',
+        danger: true
+    });
+    if (!confirmed) return;
+
+    const res = await fetch(`/api/agents/${agentId}`, {method: 'DELETE'});
+    if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || 'Failed to delete agent');
+    }
+    loadAgents();
+}
+
+// ===================== WORKPLACES =====================
+
+let workplacesLoaded = false;
+
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    const toast = document.createElement('div');
+    toast.className = 'px-4 py-3 rounded-lg shadow-lg text-white font-medium transition-opacity duration-500 ' +
+        (type === 'success' ? 'bg-green-600' : type === 'info' ? 'bg-blue-600' : 'bg-red-600');
+    toast.textContent = message;
+    container.appendChild(toast);
+    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 500); }, 3000);
+}
+
+const TYPE_LABELS = { local: 'Local', remote: 'Remote SSH', tunnel: 'Tunnel', bwrap: 'Bwrap' };
+const TYPE_COLORS = {
+    local:  'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+    remote: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+    tunnel:  'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+    bwrap:  'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+};
+const STATUS_DOT = {
+    connected:    'bg-green-500',
+    disconnected: 'bg-gray-400',
+    connecting:   'bg-yellow-400 animate-pulse',
+    error:        'bg-red-500',
+};
+
+function statusDot(status) {
+    return `<span class="inline-block w-2 h-2 rounded-full ${STATUS_DOT[status] || 'bg-gray-400'}"></span>`;
+}
+
+function renderWorkplaceCard(h) {
+    const typeLabel = TYPE_LABELS[h.type] || h.type;
+    const typeCls = TYPE_COLORS[h.type] || 'bg-gray-100 text-gray-700';
+    const status = h.status || 'disconnected';
+    const agentCount = h.agent_count || 0;
+    const connectorInfo = h.connector ? `<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">${h.connector.device_name || ''} · ${h.connector.platform || ''}</p>` : '';
+    return `
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow p-5 cursor-pointer" onclick="window.location='/workplaces/${h.id}'">
+        <div class="flex items-start justify-between gap-2 mb-3">
+            <div class="flex-1 min-w-0">
+                <h3 class="font-semibold text-gray-900 dark:text-gray-100 truncate">${h.name}</h3>
+                ${connectorInfo}
+            </div>
+            <span class="flex-shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${typeCls}">${typeLabel}</span>
+        </div>
+        <div class="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
+            <span class="flex items-center gap-1.5">${statusDot(status)} ${status.charAt(0).toUpperCase() + status.slice(1)}</span>
+            <span>${agentCount} agent${agentCount !== 1 ? 's' : ''}</span>
+        </div>
+    </div>`;
+}
+
+let workplaceList = [];
+
+function loadWorkplaces() {
+    $.get('/api/workplaces', function(data) {
+        workplaceList = data || [];
+        renderWorkplaces();
+        workplacesLoaded = true;
+    });
+}
+
+function renderWorkplaces() {
+    const grid = $('#workplaces-grid');
+    const empty = $('#workplaces-empty');
+    const searchEl = document.getElementById('workplace-search');
+    const search = searchEl ? searchEl.value.toLowerCase().trim() : '';
+    const filtered = search
+        ? workplaceList.filter(w => (w.name || w.id).toLowerCase().includes(search) || (w.type || '').toLowerCase().includes(search))
+        : workplaceList;
+    grid.empty();
+    if (!filtered.length) {
+        grid.addClass('hidden');
+        empty.removeClass('hidden');
+        empty.find('p:first-of-type').text(search ? 'No workplaces found' : 'No workplaces yet');
+        empty.find('p:last-of-type').text(search ? 'Try a different search term.' : 'Create a workplace to assign execution environments to your agents.');
+        return;
+    }
+    grid.removeClass('hidden');
+    empty.addClass('hidden');
+    filtered.forEach(h => grid.append(renderWorkplaceCard(h)));
+}
+
+function filterWorkplaces() {
+    renderWorkplaces();
+}
+
+function showCreateWorkplaceModal() { $('#create-workplace-modal').removeClass('hidden'); onTypeChange(); }
+function closeCreateWorkplaceModal() { $('#create-workplace-modal').addClass('hidden'); }
+
+function onTypeChange() {
+    const t = $('#new-workplace-type').val();
+    $('#cfg-local').toggleClass('hidden', t !== 'local' && t !== 'bwrap');
+    $('#cfg-bwrap-note').toggleClass('hidden', t !== 'bwrap');
+    $('#cfg-remote').toggleClass('hidden', t !== 'remote');
+    $('#cfg-tunnel').toggleClass('hidden', t !== 'tunnel');
+}
+
+function onAuthTypeChange() {
+    const isKey = $('#cfg-remote-auth').val() === 'key';
+    $('#cfg-remote-key-row').toggleClass('hidden', !isKey);
+    $('#cfg-remote-pass-row').toggleClass('hidden', isKey);
+}
+
+function buildConfig() {
+    const t = $('#new-workplace-type').val();
+    if (t === 'local' || t === 'bwrap') return { workspace_path: $('#cfg-local-path').val().trim() };
+    if (t === 'remote') {
+        const auth = $('#cfg-remote-auth').val();
+        const cfg = {
+            host: $('#cfg-remote-host').val().trim(),
+            port: parseInt($('#cfg-remote-port').val()) || 22,
+            username: $('#cfg-remote-user').val().trim(),
+            auth_type: auth,
+            workspace_path: $('#cfg-remote-workspace').val().trim(),
+        };
+        if (auth === 'key') cfg.key_path = $('#cfg-remote-key').val().trim();
+        else cfg.password = $('#cfg-remote-pass').val();
+        return cfg;
+    }
+    if (t === 'tunnel') return { workspace_path: $('#cfg-tunnel-workspace').val().trim() };
+    return {};
+}
+
+function createWorkplace() {
+    const name = $('#new-workplace-name').val().trim();
+    const type = $('#new-workplace-type').val();
+    if (!name) { showToast('Name is required', 'error'); return; }
+    if (type === 'remote' && !$('#cfg-remote-host').val().trim()) {
+        showToast('Host is required for remote workplaces', 'error'); return;
+    }
+    $.ajax({
+        url: '/api/workplaces',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ name, type, config: buildConfig() }),
+        success: function(workplace) {
+            closeCreateWorkplaceModal();
+            window.location = '/workplaces/' + workplace.id;
+        },
+        error: function(xhr) {
+            showToast((xhr.responseJSON && xhr.responseJSON.error) || 'Failed to create workplace', 'error');
+        }
+    });
+}
+
+// ===================== SHARED =====================
+
+function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s || '';
+    return d.innerHTML;
+}
+
+// ===================== INIT =====================
+
+// Wait for DOMContentLoaded: renderCard() needs mkToggle() from ui-toggle.js,
+// which is loaded with `defer` and only guaranteed to have run by then. A fast
+// /api/agents response can otherwise beat it and throw "mkToggle is not defined".
+document.addEventListener('DOMContentLoaded', loadAgents);
+</script>
+{% endblock %}

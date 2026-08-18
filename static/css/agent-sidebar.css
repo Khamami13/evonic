@@ -1,0 +1,337 @@
+/* Agent Sidebar — persistent left sidebar with agent avatars */
+
+:root {
+    --sidebar-bg: #ffffff;
+    --sidebar-hover: rgba(0, 0, 0, 0.05);
+    --sidebar-tooltip-bg: #ffffff;
+    --sidebar-avatar-bg: #e2e8f0;
+    --sidebar-text: #1e293b;
+    --sidebar-text-muted: #64748b;
+    --sidebar-border: rgba(0, 0, 0, 0.08);
+    --sidebar-scrollbar-thumb: rgba(0, 0, 0, 0.15);
+    --sidebar-avatar-shadow-hover: rgba(0, 0, 0, 0.15);
+    --sidebar-tooltip-border: rgba(0, 0, 0, 0.1);
+    --sidebar-tooltip-shadow: rgba(0, 0, 0, 0.12);
+}
+
+html.dark {
+    --sidebar-bg: #0f172a;
+    --sidebar-hover: rgba(255, 255, 255, 0.06);
+    --sidebar-tooltip-bg: #1e293b;
+    --sidebar-avatar-bg: #334155;
+    --sidebar-text: #e2e8f0;
+    --sidebar-text-muted: #94a3b8;
+    --sidebar-border: rgba(255, 255, 255, 0.06);
+    --sidebar-scrollbar-thumb: rgba(255, 255, 255, 0.12);
+    --sidebar-avatar-shadow-hover: rgba(255, 255, 255, 0.2);
+    --sidebar-tooltip-border: rgba(255, 255, 255, 0.08);
+    --sidebar-tooltip-shadow: rgba(0, 0, 0, 0.4);
+}
+
+/* ── Sidebar Container ── */
+#agent-sidebar {
+    width: 64px;
+    min-width: 64px;
+    flex-shrink: 0;
+    height: calc(100vh - 56px);
+    background: var(--sidebar-bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    z-index: 40;
+    border-right: 1px solid var(--sidebar-border);
+    transition: width 0.25s ease, min-width 0.25s ease, padding 0.25s ease, border 0.25s ease;
+}
+
+/* Collapsed state: shrinks to zero, main content expands to full width */
+#agent-sidebar.collapsed {
+    width: 0;
+    min-width: 0;
+    padding: 0;
+    border-right: none;
+    overflow: hidden;
+}
+
+#agent-sidebar::-webkit-scrollbar {
+    width: 4px;
+}
+
+#agent-sidebar::-webkit-scrollbar-thumb {
+    background: var(--sidebar-scrollbar-thumb);
+    border-radius: 4px;
+}
+
+/* ── Avatar Items ── */
+#agent-sidebar .agent-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+    flex-shrink: 0;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    user-select: none;
+}
+
+#agent-sidebar .agent-avatar:hover {
+    transform: scale(1.12);
+    box-shadow: 0 0 12px var(--sidebar-avatar-shadow-hover);
+}
+
+#agent-sidebar .agent-avatar.selected {
+    box-shadow: 0 0 0 2px var(--sidebar-bg), 0 0 0 4px #3b82f6;
+}
+
+#agent-sidebar .agent-avatar span {
+    color: #fff;
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    line-height: 1;
+    pointer-events: none;
+}
+
+#agent-sidebar .agent-avatar-img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    pointer-events: none;
+}
+
+/* ── Busy / Done Status Ring ── */
+#agent-sidebar .agent-avatar::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Static full ring: task done but user hasn't opened the chat yet */
+#agent-sidebar .agent-avatar[data-unread="true"]::after {
+    opacity: 1;
+    border-color: #f59e0b;
+}
+
+/* Spinning ring: agent is busy (overrides the static ring) */
+#agent-sidebar .agent-avatar[data-busy="true"]::after {
+    opacity: 1;
+    border-color: #f59e0b #f59e0b transparent transparent;
+    animation: agent-busy-spin 0.8s linear infinite;
+}
+
+@keyframes agent-busy-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ── Tooltip ── */
+.agent-sidebar-tooltip {
+    position: fixed;
+    z-index: 9999;
+    background: var(--sidebar-tooltip-bg);
+    color: var(--sidebar-text);
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.4;
+    min-width: 180px;
+    max-width: 260px;
+    pointer-events: none;
+    box-shadow: 0 4px 16px var(--sidebar-tooltip-shadow);
+    border: 1px solid var(--sidebar-tooltip-border);
+}
+
+.agent-sidebar-tooltip .tt-name {
+    font-weight: 700;
+    font-size: 14px;
+    display: block;
+    margin-bottom: 2px;
+}
+
+.agent-sidebar-tooltip .tt-desc {
+    font-size: 12px;
+    color: var(--sidebar-text-muted);
+    display: block;
+    margin-bottom: 6px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.agent-sidebar-tooltip .tt-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.agent-sidebar-tooltip .tt-badge.busy {
+    background: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+}
+
+.agent-sidebar-tooltip .tt-badge.idle {
+    background: rgba(148, 163, 184, 0.15);
+    color: #94a3b8;
+}
+
+/* ── Burger Toggle Button (in header navbar, left of Evonic logo) ── */
+.sidebar-toggle-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 36px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted, #94a3b8);
+    cursor: pointer;
+    border-radius: 6px;
+    flex-shrink: 0;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.sidebar-toggle-btn:hover {
+    background: rgba(0, 0, 0, 0.06);
+    color: var(--text-heading, #1e293b);
+}
+
+html.dark .sidebar-toggle-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #e2e8f0;
+}
+
+.sidebar-toggle-btn svg {
+    width: 20px;
+    height: 20px;
+    transition: transform 0.25s ease;
+}
+
+/* Rotate icon when sidebar is collapsed */
+.sidebar-toggle-btn.collapsed svg {
+    transform: rotate(180deg);
+}
+
+/* ── Responsive: mobile (below lg breakpoint) ── */
+@media (max-width: 1023px) {
+    #agent-sidebar {
+        height: calc(100vh - 160px);
+    }
+}
+
+/* Cancel the header's 1rem side padding for the toggle button so its 64px
+   width sits flush above the 64px avatar sidebar column. */
+@media (max-width: 768px) {
+    .sidebar-toggle-btn {
+        margin-left: -1rem;
+    }
+}
+
+/* ── Bubble Popup (turn-complete notification) ── */
+.agent-bubble-popup {
+    position: fixed;
+    z-index: 10000;
+    background: #ffffff;
+    color: #1e293b;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 18px;
+    padding: 0;
+    width: 260px;
+    max-width: calc(100vw - 100px);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    cursor: pointer;
+    overflow: visible;
+    user-select: none;
+}
+
+.agent-bubble-popup.bubble-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.agent-bubble-popup .agent-bubble-arrow {
+    position: absolute;
+    left: -7px;
+    top: 22px;
+    width: 14px;
+    height: 14px;
+    background: #ffffff;
+    border-left: 1px solid rgba(0, 0, 0, 0.12);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+    transform: rotate(45deg);
+    z-index: 1;
+}
+
+.agent-bubble-popup.bubble-left .agent-bubble-arrow {
+    left: auto;
+    right: -7px;
+    border-left: none;
+    border-bottom: none;
+    border-right: 1px solid rgba(0, 0, 0, 0.12);
+    border-top: 1px solid rgba(0, 0, 0, 0.12);
+    transform: rotate(45deg);
+}
+
+.agent-bubble-popup .agent-bubble-header {
+    padding: 10px 34px 6px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #334155;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.agent-bubble-popup .agent-bubble-body {
+    padding: 0 14px 12px 14px;
+    font-size: 13px;
+    line-height: 1.45;
+    color: #475569;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+}
+
+.agent-bubble-popup .agent-bubble-close {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: transparent;
+    color: #94a3b8;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.agent-bubble-popup .agent-bubble-close:hover {
+    background: rgba(0, 0, 0, 0.06);
+    color: #475569;
+}

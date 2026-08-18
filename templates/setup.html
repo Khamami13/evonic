@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup — Evonic</title>
+    <script>
+    // Anti-flash: apply theme + page background before first paint (synchronous, render-blocking)
+    (function() {
+        var t = localStorage.getItem('evonic-theme') || 'system';
+        var isDark = t === 'dark' || (t === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        if (isDark) {
+            document.documentElement.classList.add('dark');
+        }
+        // Set html background inline so it paints instantly — eliminates flash between navigations
+        document.documentElement.style.backgroundColor = isDark ? '#0f172a' : '#eef2ff';
+    })();
+    </script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}?v=3">
+    <script src="{{ url_for('static', filename='js/jquery-3.7.1.min.js') }}"></script>
+</head>
+<body class="bg-gradient-to-br from-indigo-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-xl">
+
+        <!-- Header -->
+        <div class="text-center mb-4">
+            <div>
+                <img src="{{ url_for('static', filename='img/mascot.png') }}" alt="Evonic Mascot"
+                     class="inline-block max-w-[96px] w-full h-auto drop-shadow-lg">
+            </div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">Evonic</h1>
+            <p class="text-gray-500 dark:text-gray-400 mt-1 text-sm">First-time setup</p>
+        </div>
+
+        <!-- Step indicator -->
+        <div class="flex items-center justify-center gap-2 mb-6">
+            <div class="flex items-center gap-2">
+                <div id="dot-1" class="w-8 h-8 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center transition-all">1</div>
+                <span id="label-1" class="text-xs font-medium text-indigo-600 hidden sm:block">Provider</span>
+            </div>
+            <div class="w-8 h-px bg-gray-300 dark:bg-gray-600"></div>
+            <div class="flex items-center gap-2">
+                <div id="dot-2" class="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 text-xs font-bold flex items-center justify-center transition-all">2</div>
+                <span id="label-2" class="text-xs font-medium text-gray-400 dark:text-gray-500 hidden sm:block">Agent</span>
+            </div>
+            <div class="w-8 h-px bg-gray-300 dark:bg-gray-600"></div>
+            <div class="flex items-center gap-2">
+                <div id="dot-3" class="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 text-xs font-bold flex items-center justify-center transition-all">3</div>
+                <span id="label-3" class="text-xs font-medium text-gray-400 dark:text-gray-500 hidden sm:block">Review</span>
+            </div>
+            <div class="w-8 h-px bg-gray-300 dark:bg-gray-600"></div>
+            <div class="flex items-center gap-2">
+                <div id="dot-4" class="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 text-xs font-bold flex items-center justify-center transition-all">4</div>
+                <span id="label-4" class="text-xs font-medium text-gray-400 dark:text-gray-500 hidden sm:block">Password</span>
+            </div>
+        </div>
+
+        <!-- Card -->
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+
+            <!-- ===== STEP 1: Provider & Model ===== -->
+            <div id="step-1">
+                <div class="bg-indigo-600 px-6 py-5">
+                    <h2 class="text-white font-semibold text-lg">LLM Provider & Model</h2>
+                    <p class="text-indigo-200 text-sm mt-0.5">Select where Evonic should send requests to generate AI responses.</p>
+                </div>
+                <div class="p-6 space-y-5">
+                    <div id="s1-error" class="hidden bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-lg px-4 py-3 text-sm"></div>
+
+                    <!-- Provider selection -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Provider <span class="text-red-500">*</span></label>
+                        <div id="provider-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {% for pid, p in providers.items() %}
+                            <label class="provider-card flex items-start gap-3 border-2 rounded-xl p-3 cursor-pointer transition-all
+                                {% if pid == 'openrouter' %}border-indigo-500 bg-indigo-50 dark:bg-indigo-950{% else %}border-gray-200 dark:border-gray-600 hover:border-indigo-300 dark:hover:border-indigo-500{% endif %}">
+                                <input type="radio" name="provider" value="{{ pid }}" {% if pid == 'openrouter' %}checked{% endif %} class="mt-0.5 accent-indigo-600">
+                                <div>
+                                    <div class="text-sm font-semibold text-gray-800 dark:text-gray-200">{{ p.label }}</div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400">{{ p.description }}</div>
+                                </div>
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Base URL (shown for custom/local) -->
+                    <div id="base-url-row">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Base URL <span class="text-red-500">*</span></label>
+                        <input type="text" id="base-url" placeholder="https://openrouter.ai/api/v1"
+                            class="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-lg text-sm placeholder-gray-400 dark:placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
+                    </div>
+
+                    <!-- API Key -->
+                    <div id="api-key-row">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">API Key <span id="api-key-required-marker" class="text-red-500">*</span><span id="api-key-optional-marker" class="hidden text-gray-400 dark:text-gray-500 font-normal">(optional)</span></label>
+                        <input type="password" id="api-key" placeholder="sk-..."
+                            class="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-lg text-sm placeholder-gray-400 dark:placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
+                    </div>
+
+                    <!-- Model name -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Model Name <span class="text-red-500">*</span></label>
+                        <input type="text" id="model-name" placeholder="openai/gpt-4o-mini"
+                            class="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-lg text-sm placeholder-gray-400 dark:placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
+                        <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">The model identifier sent to the API (e.g. <code class="bg-gray-100 dark:bg-gray-700 px-1 rounded">openai/gpt-4o-mini</code>).</p>
+                    </div>
+
+                    <!-- Test connection -->
+                    <div class="flex items-center gap-3">
+                        <button id="test-btn" type="button"
+                            class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-2">
+                            <span id="test-btn-text">Test Connection</span>
+                            <span id="test-spinner" class="hidden">
+                                <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                                </svg>
+                            </span>
+                        </button>
+                        <span id="test-result" class="text-sm hidden"></span>
+                    </div>
+
+                    <div class="flex justify-end pt-2">
+                        <button id="s1-next" type="button"
+                            class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm transition-colors">
+                            Next &rarr;
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== STEP 2: Super Agent & Tone ===== -->
+            <div id="step-2" class="hidden">
+                <div class="bg-indigo-600 px-6 py-5">
+                    <h2 class="text-white font-semibold text-lg">Super Agent</h2>
+                    <p class="text-indigo-200 text-sm mt-0.5">Configure the administrative agent that controls the platform.</p>
+                </div>
+                <div class="p-6 space-y-5">
+                    <div id="s2-error" class="hidden bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-lg px-4 py-3 text-sm"></div>
+
+                    <!-- Agent name -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Agent Name <span class="text-red-500">*</span></label>
+                        <input type="text" id="agent-name" placeholder="e.g., Admin"
+                            class="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-lg text-sm placeholder-gray-400 dark:placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
+                    </div>
+
+                    <!-- Agent ID -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Agent ID <span class="text-red-500">*</span></label>
+                        <input type="text" id="agent-id" placeholder="admin" autocomplete="off"
+                            class="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-lg text-sm placeholder-gray-400 dark:placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
+                        <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">Alphanumeric and underscores only. Auto-derived from name. Cannot be changed later.</p>
+                    </div>
+
+                    <!-- Language preference -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Language <span class="text-red-500">*</span></label>
+                        <div class="space-y-2">
+                            {% for lid, l in languages.items() %}
+                            <label class="lang-card flex items-start gap-3 border-2 rounded-xl p-3 cursor-pointer transition-all
+                                {% if lid == 'english' %}border-indigo-500 bg-indigo-50 dark:bg-indigo-950{% else %}border-gray-200 dark:border-gray-600 hover:border-indigo-300 dark:hover:border-indigo-500{% endif %}">
+                                <input type="radio" name="language" value="{{ lid }}" {% if lid == 'english' %}checked{% endif %} class="mt-0.5 accent-indigo-600">
+                                <div>
+                                    <div class="text-sm font-semibold text-gray-800 dark:text-gray-200">{{ l.label }}</div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400">{{ l.description }}</div>
+                                </div>
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Memory engine -->
+                    <div class="flex items-start gap-3 pt-1">
+                        <input type="checkbox" id="install-evomem" checked
+                            class="mt-0.5 accent-indigo-600 cursor-pointer">
+                        <div>
+                            <label for="install-evomem" class="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+                                Install evomem memory engine <span class="text-xs text-gray-400 dark:text-gray-500 font-normal">(recommended)</span>
+                            </label>
+                            <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Enables semantic memory and graph features. Falls back to FTS5 if unavailable.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between pt-2">
+                        <button id="s2-back" type="button"
+                            class="px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                            &larr; Back
+                        </button>
+                        <button id="s2-next" type="button"
+                            class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm transition-colors">
+                            Next &rarr;
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== STEP 3: Review & Create ===== -->
+            <div id="step-3" class="hidden">
+                <div class="bg-indigo-600 px-6 py-5">
+                    <h2 class="text-white font-semibold text-lg">Review & Create</h2>
+                    <p class="text-indigo-200 text-sm mt-0.5">Confirm your setup before creating the platform.</p>
+                </div>
+                <div class="p-6 space-y-5">
+                    <div id="s3-error" class="hidden bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-lg px-4 py-3 text-sm"></div>
+
+                    <!-- Summary -->
+                    <div class="bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+                        <div class="flex justify-between px-4 py-3">
+                            <span class="text-gray-500 dark:text-gray-400 font-medium">Provider</span>
+                            <span id="review-provider" class="text-gray-900 dark:text-gray-100 font-semibold"></span>
+                        </div>
+                        <div class="flex justify-between px-4 py-3">
+                            <span class="text-gray-500 dark:text-gray-400 font-medium">Model</span>
+                            <span id="review-model" class="text-gray-900 dark:text-gray-100"></span>
+                        </div>
+                        <div class="flex justify-between px-4 py-3">
+                            <span class="text-gray-500 dark:text-gray-400 font-medium">Base URL</span>
+                            <span id="review-url" class="text-gray-900 dark:text-gray-100 text-xs break-all"></span>
+                        </div>
+                        <div class="flex justify-between px-4 py-3">
+                            <span class="text-gray-500 dark:text-gray-400 font-medium">Agent Name</span>
+                            <span id="review-agent-name" class="text-gray-900 dark:text-gray-100"></span>
+                        </div>
+                        <div class="flex justify-between px-4 py-3">
+                            <span class="text-gray-500 dark:text-gray-400 font-medium">Agent ID</span>
+                            <span id="review-agent-id" class="text-gray-900 dark:text-gray-100 font-mono text-xs"></span>
+                        </div>
+                        <div class="flex justify-between px-4 py-3">
+                            <span class="text-gray-500 dark:text-gray-400 font-medium">Language</span>
+                            <span id="review-language" class="text-gray-900 dark:text-gray-100"></span>
+                        </div>
+                        <div class="flex justify-between px-4 py-3">
+                            <span class="text-gray-500 dark:text-gray-400 font-medium">Memory Engine</span>
+                            <span id="review-evomem" class="text-gray-900 dark:text-gray-100"></span>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between pt-2">
+                        <button id="s3-back" type="button"
+                            class="px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                            &larr; Back
+                        </button>
+                        <button id="s3-next" type="button"
+                            class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm transition-colors">
+                            Next &rarr;
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== STEP 4: Password ===== -->
+            <div id="step-4" class="hidden">
+                <div class="bg-indigo-600 px-6 py-5">
+                    <h2 class="text-white font-semibold text-lg">Password</h2>
+                    <p class="text-indigo-200 text-sm mt-0.5">Set a password to secure your web dashboard.</p>
+                </div>
+                <div class="p-6 space-y-5">
+                    <div id="s4-error" class="hidden bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-lg px-4 py-3 text-sm"></div>
+
+                    <!-- Password -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Password <span class="text-red-500">*</span></label>
+                        <input type="password" id="password" placeholder="Enter a secure password" autocomplete="new-password"
+                            class="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-lg text-sm placeholder-gray-400 dark:placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
+                    </div>
+
+                    <!-- Confirm Password -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Confirm Password <span class="text-red-500">*</span></label>
+                        <input type="password" id="password-confirm" placeholder="Confirm your password" autocomplete="new-password"
+                            class="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-lg text-sm placeholder-gray-400 dark:placeholder-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
+                    </div>
+
+                    <div class="flex justify-between pt-2">
+                        <button id="s4-back" type="button"
+                            class="px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                            &larr; Back
+                        </button>
+                        <button id="s4-next" type="button"
+                            class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-2.5 rounded-lg text-sm transition-colors">
+                            &rarr; Create Platform
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <p class="text-center text-xs text-gray-400 dark:text-gray-500 mt-6">Evonic &mdash; First-time Setup</p>
+    </div>
+
+<script>
+// Provider metadata from server
+const PROVIDERS = {{ providers | tojson }};
+const LANGUAGES = {{ languages | tojson }};
+
+let currentStep = 1;
+
+// ---- Provider card highlight ----
+$(document).on('change', 'input[name="provider"]', function() {
+    $('.provider-card').removeClass('border-indigo-500 bg-indigo-50 dark:bg-indigo-950').addClass('border-gray-200 dark:border-gray-600');
+    $(this).closest('.provider-card').addClass('border-indigo-500 bg-indigo-50 dark:bg-indigo-950').removeClass('border-gray-200 dark:border-gray-600');
+    updateProviderForm($(this).val());
+    resetTestResult();
+});
+
+// ---- Language card highlight ----
+$(document).on('change', 'input[name="language"]', function() {
+    $('.lang-card').removeClass('border-indigo-500 bg-indigo-50 dark:bg-indigo-950').addClass('border-gray-200 dark:border-gray-600');
+    $(this).closest('.lang-card').addClass('border-indigo-500 bg-indigo-50 dark:bg-indigo-950').removeClass('border-gray-200 dark:border-gray-600');
+});
+
+// ---- Agent name -> ID auto-derive ----
+$('#agent-name').on('input', function() {
+    const name = $(this).val();
+    const id = name.toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/_+/g, '_').replace(/^_+|_+$/g, '') || 'admin';
+    $('#agent-id').val(id);
+});
+
+function updateProviderForm(provider) {
+    const p = PROVIDERS[provider] || {};
+    $('#base-url').val(p.base_url || '');
+    $('#model-name').attr('placeholder', p.placeholder_model || '');
+
+    const apiKeyRequired = !!p.api_key_required;
+    if (apiKeyRequired) {
+        $('#api-key-required-marker').removeClass('hidden');
+        $('#api-key-optional-marker').addClass('hidden');
+    } else {
+        $('#api-key-required-marker').addClass('hidden');
+        $('#api-key-optional-marker').removeClass('hidden');
+    }
+
+    // Show base-url field only for custom provider; hide for known ones
+    if (provider === 'custom') {
+        $('#base-url').attr('placeholder', 'https://your-endpoint/v1');
+        $('#base-url-row').removeClass('hidden');
+    } else {
+        // Show it but read-only style to let advanced users override
+        $('#base-url-row').removeClass('hidden');
+    }
+}
+
+function resetTestResult() {
+    $('#test-result').addClass('hidden').text('');
+}
+
+// ---- Test connection ----
+$('#test-btn').on('click', function() {
+    const baseUrl = $('#base-url').val().trim();
+    const apiKey = $('#api-key').val().trim();
+    if (!baseUrl) { showStepError(1, 'Enter a base URL first.'); return; }
+
+    $('#test-btn').prop('disabled', true);
+    $('#test-btn-text').text('Testing...');
+    $('#test-spinner').removeClass('hidden');
+    resetTestResult();
+
+    $.ajax({
+        url: '/api/setup/test-connection',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ base_url: baseUrl, api_key: apiKey || null }),
+        complete: function() {
+            $('#test-btn').prop('disabled', false);
+            $('#test-btn-text').text('Test Connection');
+            $('#test-spinner').addClass('hidden');
+        },
+        success: function(data) {
+            $('#test-result').removeClass('hidden text-red-600 dark:text-red-400').addClass('text-green-600 dark:text-green-400')
+                .html('&#10003; ' + data.message);
+        },
+        error: function(xhr) {
+            const msg = (xhr.responseJSON || {}).message || 'Connection failed';
+            $('#test-result').removeClass('hidden text-green-600 dark:text-green-400').addClass('text-red-600 dark:text-red-400')
+                .html('&#10007; ' + msg);
+        }
+    });
+});
+
+// ---- Navigation ----
+$('#s1-next').on('click', function() {
+    if (!validateStep1()) return;
+    goToStep(2);
+});
+
+$('#s2-back').on('click', function() { goToStep(1); });
+$('#s2-next').on('click', function() {
+    if (!validateStep2()) return;
+    populateReview();
+    goToStep(3);
+});
+
+$('#s3-back').on('click', function() { goToStep(2); });
+$('#s3-next').on('click', function() { goToStep(4); });
+
+$('#s4-back').on('click', function() { goToStep(3); });
+$('#s4-next').on('click', function() { if (!validateStep4()) return; submitSetup(); });
+
+// ---- Validation ----
+function validateStep1() {
+    const provider = $('input[name="provider"]:checked').val();
+    const baseUrl = $('#base-url').val().trim();
+    const model = $('#model-name').val().trim();
+    const p = PROVIDERS[provider] || {};
+
+    clearStepError(1);
+    if (!baseUrl) { showStepError(1, 'Base URL is required.'); return false; }
+    if (p.api_key_required && !$('#api-key').val().trim()) {
+        showStepError(1, 'API key is required for ' + p.label + '.'); return false;
+    }
+    if (!model) { showStepError(1, 'Model name is required.'); return false; }
+    return true;
+}
+
+function validateStep2() {
+    const name = $('#agent-name').val().trim();
+    const id = $('#agent-id').val().trim();
+    clearStepError(2);
+    if (!name) { showStepError(2, 'Agent name is required.'); return false; }
+    if (!id || !/^[a-zA-Z0-9_]+$/.test(id)) {
+        showStepError(2, 'Agent ID must be alphanumeric and underscores only.'); return false;
+    }
+    return true;
+}
+
+function validateStep4() {
+    const pw = $('#password').val();
+    const pwConfirm = $('#password-confirm').val();
+    clearStepError(4);
+    if (!pw) { showStepError(4, 'Password is required.'); return false; }
+    if (pw.length < 6) { showStepError(4, 'Password must be at least 6 characters.'); return false; }
+    if (pw !== pwConfirm) { showStepError(4, 'Passwords do not match.'); return false; }
+    return true;
+}
+
+function populateReview() {
+    const provider = $('input[name="provider"]:checked').val();
+    const language = $('input[name="language"]:checked').val();
+    $('#review-provider').text((PROVIDERS[provider] || {}).label || provider);
+    $('#review-model').text($('#model-name').val().trim());
+    $('#review-url').text($('#base-url').val().trim());
+    $('#review-agent-name').text($('#agent-name').val().trim());
+    $('#review-agent-id').text($('#agent-id').val().trim());
+    $('#review-language').text((LANGUAGES[language] || {}).label || language);
+    $('#review-evomem').text($('#install-evomem').prop('checked') ? 'evomem (install)' : 'FTS5 (skip install)');
+}
+
+// ---- Submit ----
+function submitSetup() {
+    clearStepError(3);
+    $('#s4-next').prop('disabled', true);
+    $('#create-spinner').removeClass('hidden');
+
+    const payload = {
+        provider: $('input[name="provider"]:checked').val(),
+        model_name: $('#model-name').val().trim(),
+        base_url: $('#base-url').val().trim(),
+        api_key: $('#api-key').val().trim() || null,
+        agent_name: $('#agent-name').val().trim(),
+        agent_id: $('#agent-id').val().trim(),
+        language: $('input[name="language"]:checked').val(),
+        description: '',
+        password: $('#password').val(),
+        install_evomem: $('#install-evomem').prop('checked'),
+    };
+
+    $.ajax({
+        url: '/api/setup',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(payload),
+        success: function(data) {
+            window.location.href = '/agents/' + data.agent_id;
+        },
+        error: function(xhr) {
+            const msg = (xhr.responseJSON || {}).error || 'Unexpected error. Please try again.';
+            showStepError(4, msg);
+            $('#s4-next').prop('disabled', false);
+            $('#create-spinner').addClass('hidden');
+        }
+    });
+}
+
+// ---- Step transitions ----
+function goToStep(n) {
+    currentStep = n;
+    $('#step-1, #step-2, #step-3, #step-4').addClass('hidden');
+    $('#step-' + n).removeClass('hidden');
+    updateStepDots(n);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function updateStepDots(active) {
+    for (let i = 1; i <= 4; i++) {
+        const dot = $('#dot-' + i);
+        const label = $('#label-' + i);
+        if (i < active) {
+            dot.removeClass('bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 bg-indigo-600 text-white')
+               .addClass('bg-green-500 text-white');
+        } else if (i === active) {
+            dot.removeClass('bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 bg-green-500')
+               .addClass('bg-indigo-600 text-white');
+            label.removeClass('text-gray-400 dark:text-gray-500').addClass('text-indigo-600');
+        } else {
+            dot.removeClass('bg-indigo-600 text-white bg-green-500')
+               .addClass('bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500');
+            label.removeClass('text-indigo-600').addClass('text-gray-400 dark:text-gray-500');
+        }
+    }
+}
+
+// ---- Error helpers ----
+function showStepError(step, msg) {
+    $('#s' + step + '-error').text(msg).removeClass('hidden');
+}
+function clearStepError(step) {
+    $('#s' + step + '-error').text('').addClass('hidden');
+}
+
+// ---- Init ----
+$(function() {
+    const initialProvider = $('input[name="provider"]:checked').val();
+    updateProviderForm(initialProvider);
+});
+</script>
+</body>
+</html>

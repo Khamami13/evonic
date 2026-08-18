@@ -1,0 +1,2275 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+/* Markdown rendering in comments */
+.kb-markdown > :first-child { margin-top: 0; }
+.kb-markdown > :last-child { margin-bottom: 0; }
+.kb-markdown p { margin: 0.25rem 0; }
+.kb-markdown code { background: #e5e7eb; padding: 0.125rem 0.375rem; border-radius: 0.25rem; font-size: 0.875em; }
+.kb-markdown pre { background: #1f2937; color: #f3f4f6; padding: 0.75rem; border-radius: 0.5rem; overflow-x: auto; margin: 0.5rem 0; }
+.kb-markdown pre code { background: none; padding: 0; color: inherit; }
+.kb-markdown blockquote { border-left: 3px solid #d1d5db; padding-left: 0.75rem; color: #6b7280; margin: 0.25rem 0; }
+.kb-markdown a { color: #6366f1; text-decoration: underline; }
+.kb-markdown ul, .kb-markdown ol { padding-left: 1.5rem; margin: 0.25rem 0; }
+.kb-markdown ul { list-style-type: disc; }
+.kb-markdown ol { list-style-type: decimal; }
+.kb-markdown li { margin: 0.25rem 0; }
+
+/* Larger, more readable font for detail modal description */
+#detail-desc { font-size: 0.8rem; }
+#detail-desc ul { list-style-type: disc !important; padding-left: 1.25rem; }
+#detail-desc ol { list-style-type: decimal !important; padding-left: 1.25rem; }
+#detail-desc li { margin: 0.25rem 0; }
+.kb-markdown hr { border: none; border-top: 1px solid #e5e7eb; margin: 0.5rem 0; }
+.kb-markdown table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.8125rem; }
+.kb-markdown th, .kb-markdown td { border: 1px solid #d1d5db; padding: 6px 10px; text-align: left; }
+.kb-markdown th { background: #f3f4f6; font-weight: 600; color: #1f2937; }
+.kb-markdown tr:nth-child(even) { background: #f9fafb; }
+.kb-markdown tr:hover { background: #f3f4f6; }
+
+/* Dark mode overrides for kb-markdown */
+html.dark .kb-markdown code { background: #1e293b; color: #e2e8f0; font-size: 0.7rem; }
+html.dark .kb-markdown pre { background: #1e293b; color: #e2e8f0; }
+html.dark .kb-markdown pre code { background: none; color: inherit; }
+html.dark .kb-markdown blockquote { border-left-color: #475569; color: #94a3b8; }
+html.dark .kb-markdown hr { border-top-color: #334155; }
+html.dark .kb-markdown table { border-color: #334155; }
+html.dark .kb-markdown th, html.dark .kb-markdown td { border-color: #334155; }
+html.dark .kb-markdown th { background: #1e293b; color: #f1f5f9; }
+html.dark .kb-markdown td { color: #cbd5e1; }
+html.dark .kb-markdown tr:nth-child(even) { background: #0f172a; }
+html.dark .kb-markdown tr:hover { background: #334155; }
+
+/* Enhance button disabled state */
+#enhance-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* Assign Auto button — dark mode border color (subtle, not too bright) */
+html.dark #assign-auto-btn {
+    border-color: #92400e !important;
+}
+
+/* Drag & Drop styles */
+.dragging { opacity: 0.5; }
+.drag-over { --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color); --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color); box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000); --tw-ring-color: rgb(129 140 248); background-color: rgb(238 242 255); }
+html.dark .drag-over { --tw-ring-color: rgb(99 102 241); background-color: rgb(49 46 129 / 0.2); }
+
+/* Scrollable tabs — hide scrollbar */
+#detailTabs::-webkit-scrollbar { display: none; }
+#detailTabs { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Auto-grow textarea — smooth height transition */
+#task-desc, #detail-task-desc {
+    transition: height 0.15s ease-out;
+    overflow-y: hidden;
+    min-height: 4.5rem;
+    resize: none;
+}
+
+/* Kanban skeleton loading cards */
+.kanban-skeleton { display: flex; flex-direction: column; gap: 0.5rem; }
+.kanban-error-state { display: none; }
+.kanban-error-state.show { display: flex; }
+.skeleton-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+html.dark .skeleton-card {
+    background: #374151;
+    border-color: #4b5563;
+}
+.skeleton-card .sk-title { height: 0.75rem; width: 75%; }
+.skeleton-card .sk-desc  { height: 0.625rem; width: 55%; }
+.skeleton-card .sk-meta  { height: 0.625rem; width: 40%; }
+.skeleton-card .sk-actions { display: flex; gap: 0.25rem; margin-top: 0.25rem; border-top: 1px solid #f3f4f6; padding-top: 0.5rem; }
+html.dark .skeleton-card .sk-actions { border-color: #4b5563; }
+.skeleton-card .sk-btn { height: 1.5rem; border-radius: 0.25rem; flex: 1; }
+</style>
+
+<!-- Board header -->
+<div class="px-6 pt-5 pb-4">
+    <div class="flex items-center justify-between gap-2 sm:gap-3">
+        <h1 class="text-lg sm:text-xl font-semibold text-gray-900 flex-shrink-0">Kanban Board</h1>
+        <div class="flex items-center gap-1 sm:gap-1.5">
+          <button id="notifier-toggle" onclick="toggleNotifier()" class="shrink-0 px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 flex items-center gap-1 sm:gap-1.5 transition relative group" title="Pause agent notifications">
+            <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4 notifier-pause-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <svg id="notifier-play-icon" class="w-3.5 h-3.5 sm:w-4 sm:h-4 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          </button>
+          <button id="auto-refresh-toggle" onclick="toggleAutoRefresh()" class="shrink-0 px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 flex items-center gap-1 sm:gap-1.5 transition relative group" title="Auto-refresh board every 5 seconds">
+            <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4 refresh-icon transition-transform duration-1000 ease-in-out group-hover:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+          </button>
+        </div>
+    </div>
+    <div class="flex flex-col md:flex-row gap-2 items-center mt-3">
+        <!-- Desktop search bar (left of buttons) -->
+        <div class="hidden md:flex gap-2 items-center">
+            <input type="text" id="search-input-desktop" placeholder="Search tasks..." class="w-64 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-500 focus:border-indigo-400" onkeydown="if(event.key==='Enter')applySearch()" oninput="syncSearch(this)">
+            <button id="clear-search-link" onclick="clearSearch()" type="button" class="hidden text-sm text-gray-400 hover:text-red-500 cursor-pointer font-medium whitespace-nowrap" title="Clear search"><i data-lucide="x"></i></button>
+        </div>
+
+        <!-- Buttons group -->
+        <div class="flex gap-2 md:ml-auto">
+            <button id="assign-btn" onclick="openAssignModal()" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 bg-gray-300 dark:bg-gray-600 transition">Assign Agents</button>
+            <button id="trigger-btn" onclick="triggerAgents()" class="px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-lg hover:bg-orange-700 transition">Trigger Agents</button>
+
+<button onclick="openCreateModal()" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition">+ Add Task</button>
+        </div>
+
+        <!-- Mobile search bar (below buttons, full width) -->
+        <div class="md:hidden w-full">
+            <input type="text" id="search-input-mobile" placeholder="Search tasks..." class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-500 focus:border-indigo-400" onkeydown="if(event.key==='Enter')applySearch()" oninput="syncSearch(this)">
+            <button id="clear-search-link-mobile" onclick="clearSearch()" type="button" class="hidden text-sm text-gray-400 hover:text-red-500 cursor-pointer font-medium whitespace-nowrap" title="Clear search"><i data-lucide="x"></i></button>
+        </div>
+    </div>
+</div>
+
+<!-- Board columns -->
+<div class="flex gap-4 px-6 pb-6 overflow-x-auto" style="min-height: calc(100vh - 140px);">
+    <div class="flex-1 min-w-[280px] dark:bg-gray-800 bg-gray-200 rounded-xl p-4 flex flex-col border border-gray-500" data-status="todo">
+        <div class="flex items-center gap-2 mb-3">
+            <span class="font-semibold text-gray-700 dark:text-gray-200">Todo</span>
+            <span id="count-todo" class="text-xs bg-gray-100 text-gray-500 dark:bg-gray-600 dark:text-gray-100 rounded-full px-2 py-0.5">0</span>
+        </div>
+        <div class="task-list flex flex-col gap-2 flex-1 min-h-[60px]" id="list-todo">
+            <div class="kanban-skeleton" id="skel-todo">
+                <div class="skeleton-card"><div class="skeleton-line sk-title"></div><div class="skeleton-line sk-desc"></div><div class="skeleton-line sk-meta"></div><div class="sk-actions"><div class="skeleton-line sk-btn"></div><div class="skeleton-line sk-btn"></div></div></div>
+                <div class="skeleton-card"><div class="skeleton-line sk-title"></div><div class="skeleton-line sk-desc"></div><div class="skeleton-line sk-meta"></div><div class="sk-actions"><div class="skeleton-line sk-btn"></div><div class="skeleton-line sk-btn"></div></div></div>
+                <div class="skeleton-card"><div class="skeleton-line sk-title"></div><div class="skeleton-line sk-desc"></div><div class="skeleton-line sk-meta"></div><div class="sk-actions"><div class="skeleton-line sk-btn"></div><div class="skeleton-line sk-btn"></div></div></div>
+                <div class="skeleton-card"><div class="skeleton-line sk-title"></div><div class="skeleton-line sk-desc"></div><div class="skeleton-line sk-meta"></div><div class="sk-actions"><div class="skeleton-line sk-btn"></div><div class="skeleton-line sk-btn"></div></div></div>
+            </div>
+        </div>
+    </div>
+    <div class="flex-1 min-w-[280px]  dark:bg-gray-800 bg-gray-200 rounded-xl p-4 flex flex-col border border-gray-500" data-status="in-progress">
+        <div class="flex items-center gap-2 mb-3">
+            <span class="font-semibold text-gray-700 dark:text-gray-200">In Progress</span>
+            <span id="count-in-progress" class="text-xs bg-gray-100 text-gray-500 dark:bg-gray-600 dark:text-gray-100 rounded-full px-2 py-0.5">0</span>
+        </div>
+        <div class="task-list flex flex-col gap-2 flex-1 min-h-[60px]" id="list-in-progress">
+            <div class="kanban-skeleton" id="skel-in-progress">
+                <div class="skeleton-card"><div class="skeleton-line sk-title"></div><div class="skeleton-line sk-desc"></div><div class="skeleton-line sk-meta"></div><div class="sk-actions"><div class="skeleton-line sk-btn"></div><div class="skeleton-line sk-btn"></div></div></div>
+                <div class="skeleton-card"><div class="skeleton-line sk-title"></div><div class="skeleton-line sk-desc"></div><div class="skeleton-line sk-meta"></div><div class="sk-actions"><div class="skeleton-line sk-btn"></div><div class="skeleton-line sk-btn"></div></div></div>
+            </div>
+        </div>
+    </div>
+    <div class="flex-1 min-w-[280px] bg-gray-200 dark:bg-gray-800 rounded-xl p-4 flex flex-col border border-gray-500" data-status="done">
+        <div class="flex items-center gap-2 mb-3">
+            <span class="font-semibold text-gray-700 dark:text-gray-200">Done</span>
+            <span id="count-done" class="text-xs bg-gray-100 text-gray-500 dark:bg-gray-600 dark:text-gray-100 rounded-full px-2 py-0.5">0</span>
+        </div>
+        <div class="task-list flex flex-col gap-2 flex-1 min-h-[60px]" id="list-done">
+            <div class="kanban-skeleton" id="skel-done">
+                <div class="skeleton-card"><div class="skeleton-line sk-title"></div><div class="skeleton-line sk-desc"></div><div class="skeleton-line sk-meta"></div><div class="sk-actions"><div class="skeleton-line sk-btn"></div><div class="skeleton-line sk-btn"></div></div></div>
+                <div class="skeleton-card"><div class="skeleton-line sk-title"></div><div class="skeleton-line sk-desc"></div><div class="skeleton-line sk-meta"></div><div class="sk-actions"><div class="skeleton-line sk-btn"></div><div class="skeleton-line sk-btn"></div></div></div>
+                <div class="skeleton-card"><div class="skeleton-line sk-title"></div><div class="skeleton-line sk-desc"></div><div class="skeleton-line sk-meta"></div><div class="sk-actions"><div class="skeleton-line sk-btn"></div><div class="skeleton-line sk-btn"></div></div></div>
+            </div>
+        </div>
+    </div>
+    <div class="flex-1 min-w-[280px] dark:bg-gray-800 bg-gray-200 rounded-xl p-4 flex flex-col border border-gray-500" data-status="archived">
+        <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path>
+                </svg>
+                <span class="font-semibold text-gray-700 dark:text-gray-200">Archived</span>
+                <span id="count-archived" class="text-xs bg-gray-100 text-gray-500 dark:bg-gray-600 dark:text-gray-100 rounded-full px-2 py-0.5">0</span>
+            </div>
+            <button onclick="clearAllArchived()" class="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 font-medium underline">Clear All</button>
+        </div>
+        <div class="task-list flex flex-col gap-2 flex-1 min-h-[60px]" id="list-archived">
+            <div class="kanban-skeleton" id="skel-archived">
+                <div class="skeleton-card"><div class="skeleton-line sk-title"></div><div class="skeleton-line sk-desc"></div><div class="skeleton-line sk-meta"></div><div class="sk-actions"><div class="skeleton-line sk-btn"></div><div class="skeleton-line sk-btn"></div></div></div>
+                <div class="skeleton-card"><div class="skeleton-line sk-title"></div><div class="skeleton-line sk-desc"></div><div class="skeleton-line sk-meta"></div><div class="sk-actions"><div class="skeleton-line sk-btn"></div><div class="skeleton-line sk-btn"></div></div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Error state banner (hidden initially, shown on fetch failure) -->
+<div id="kanban-error-banner" class="kanban-error-state mx-6 mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl items-center justify-between gap-3">
+    <div class="flex items-center gap-3">
+        <svg class="w-5 h-5 text-red-500 dark:text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <span class="text-sm text-red-700 dark:text-red-300">Failed to load tasks. Please check your connection.</span>
+    </div>
+    <button onclick="loadTasks()" class="shrink-0 px-3 py-1.5 text-xs font-medium text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900/40 hover:bg-red-200 dark:hover:bg-red-900/60 rounded-lg transition">Retry</button>
+</div>
+
+<!-- Create/Edit Modal -->
+<div class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center" id="kb-modal">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
+        <h2 class="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100" id="modal-title">Add Task</h2>
+        <form id="task-form" onsubmit="handleSubmit(event)">
+            <input type="hidden" id="task-id">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="task-title">Title *</label>
+                <input class="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-500 focus:border-indigo-400 dark:focus:border-indigo-500" type="text" id="task-title" required placeholder="Enter task title">
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="task-desc">Description</label>
+                <textarea class="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm resize-y bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-500 focus:border-indigo-400 dark:focus:border-indigo-500" id="task-desc" rows="3" placeholder="Enter task description"></textarea>
+                <button type="button" onclick="enhanceDescription()" id="enhance-btn" class="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg px-3 py-1.5 transition" title="Use AI to enhance description & generate title">
+                    <svg class="w-3.5 h-3.5 enhance-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143z"></path></svg>
+                    <span class="enhance-label">Enhance</span>
+                    <svg class="w-3.5 h-3.5 enhance-spinner hidden animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                </button>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="task-priority">Priority</label>
+                <select class="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-500 focus:border-indigo-400 dark:focus:border-indigo-500" id="task-priority">
+                    <option value="low" selected>Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                </select>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="task-assignee">Assign to Agent (optional)</label>
+                <select class="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-500 focus:border-indigo-400 dark:focus:border-indigo-500" id="task-assignee">
+                    <option value="">-- None --</option>
+                </select>
+                <div id="task-assignee-warning" class="hidden mt-1.5 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg px-3 py-2">This agent does not have the 'kanban' skill yet. To add this skill, go to Agent &gt; Settings &gt; Skills.</div>
+            </div>
+            <div class="mb-5">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Depends on (optional)</label>
+                <div class="relative">
+                    <input type="text" id="task-deps-search" autocomplete="off" placeholder="Search tasks…"
+                        class="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-500">
+                    <ul id="task-deps-dropdown" class="hidden absolute z-50 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg mt-1 shadow-lg max-h-48 overflow-y-auto text-sm"></ul>
+                </div>
+                <ul id="task-deps-selected" class="mt-2 flex flex-col gap-1"></ul>
+            </div>
+            <div class="mb-5">
+                <div class="flex items-center justify-between gap-3 mb-1.5">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300" for="task-files">Attachments</label>
+                    <span class="text-xs text-gray-400 dark:text-gray-500">Optional</span>
+                </div>
+                <input type="file" id="task-files" accept=".png,.jpg,.jpeg,.gif,.webp,.bmp,image/png,image/jpeg,image/gif,image/webp,image/bmp" multiple
+                    class="sr-only"
+                    onchange="handleFilesSelected(this)">
+                <label for="task-files" id="task-files-dropzone" class="group flex min-h-[116px] cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-4 text-center transition hover:border-indigo-400 hover:bg-indigo-50/60 focus-within:border-indigo-500 focus-within:bg-indigo-50/60 focus-within:ring-2 focus-within:ring-indigo-200 dark:border-gray-600 dark:bg-gray-700/40 dark:hover:border-indigo-400 dark:hover:bg-indigo-900/20 dark:focus-within:border-indigo-400 dark:focus-within:bg-indigo-900/20 dark:focus-within:ring-indigo-800"
+                    ondragenter="handleTaskFilesDrag(event, true)" ondragover="handleTaskFilesDrag(event, true)" ondragleave="handleTaskFilesDrag(event, false)" ondrop="handleTaskFilesDrop(event)">
+                    <span class="mb-2 flex h-9 w-9 items-center justify-center rounded-lg bg-white text-indigo-600 shadow-sm ring-1 ring-gray-200 transition group-hover:scale-105 group-hover:bg-indigo-600 group-hover:text-white dark:bg-gray-800 dark:text-indigo-400 dark:ring-gray-600 dark:group-hover:bg-indigo-500 dark:group-hover:text-white">
+                        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" x2="12" y1="3" y2="15"></line></svg>
+                    </span>
+                    <span class="text-sm font-medium text-gray-700 dark:text-gray-200"><span class="text-indigo-600 dark:text-indigo-400">Choose images</span> or drag them here</span>
+                    <span class="mt-1 text-xs text-gray-400 dark:text-gray-500">PNG, JPG, GIF, WEBP, or BMP up to 10 MB each</span>
+                </label>
+                <div id="task-files-error" class="hidden mt-1.5 text-xs text-red-600 dark:text-red-400"></div>
+                <ul id="task-files-list" class="mt-2 grid grid-cols-1 gap-1.5"></ul>
+            </div>
+            <div class="flex justify-end gap-2">
+                <button type="button" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition" onclick="closeModal()">Cancel</button>
+                <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 dark:bg-indigo-500 rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition" id="modal-submit">Create Task</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center" id="kb-detail-modal">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl mx-4 flex flex-col" style="max-height:85vh;">
+        <!-- Header -->
+        <div class="px-6 pt-5 pb-0 border-b border-gray-100 dark:border-gray-700 flex-shrink-0">
+            <div class="flex items-start justify-between mb-3">
+                <h2 class="text-base font-semibold text-gray-900 dark:text-gray-100 pr-6 break-words" id="detail-title"></h2>
+                <button onclick="closeDetailModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-xl leading-none">&times;</button>
+            </div>
+            <!-- Tabs -->
+            <div id="detailTabs" class="flex overflow-x-auto">
+                <button class="kb-tab flex-shrink-0 whitespace-nowrap px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-indigo-600 border-b-2 border-indigo-500 -mb-px transition" data-tab="details" onclick="switchTab('details')">Details</button>
+                <button class="kb-tab flex-shrink-0 whitespace-nowrap px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 border-b-2 border-transparent -mb-px hover:text-gray-700 dark:hover:text-gray-300 transition" data-tab="activity" onclick="switchTab('activity')">Activity</button>
+                <button class="kb-tab flex-shrink-0 whitespace-nowrap px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 border-b-2 border-transparent -mb-px hover:text-gray-700 dark:hover:text-gray-300 transition" data-tab="comments" onclick="switchTab('comments')">Comments <span id="comment-count" class="hidden"></span></button>
+                <button class="kb-tab flex-shrink-0 whitespace-nowrap px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 border-b-2 border-transparent -mb-px hover:text-gray-700 dark:hover:text-gray-300 transition" data-tab="process" onclick="switchTab('process')">Process</button>
+            </div>
+        </div>
+        <!-- Body -->
+        <div class="flex-1 overflow-y-auto p-6">
+            <!-- Details panel -->
+            <div class="kb-panel" id="panel-details">
+                <div class="mb-3">
+                    <div class="text-xs font-semibold uppercase text-gray-400 dark:text-gray-500 mb-1">Description</div>
+                    <div class="kb-markdown break-words text-gray-700 dark:text-gray-300" id="detail-desc"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-4 mt-4">
+                    <div>
+                        <div class="text-xs font-semibold uppercase text-gray-400 dark:text-gray-500 mb-1">Status</div>
+                        <div class="text-sm text-gray-800 dark:text-gray-200" id="detail-status"></div>
+                    </div>
+                    <div>
+                        <div class="text-xs font-semibold uppercase text-gray-400 dark:text-gray-500 mb-1">Priority</div>
+                        <div class="text-sm text-gray-800 dark:text-gray-200" id="detail-priority"></div>
+                    </div>
+                    <div>
+                        <div class="text-xs font-semibold uppercase text-gray-400 dark:text-gray-500 mb-1">Assignee</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400" id="detail-assignee"></div>
+                    </div>
+                    <div>
+                        <div class="text-xs font-semibold uppercase text-gray-400 dark:text-gray-500 mb-1">Created</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400" id="detail-created"></div>
+                    </div>
+                    <div>
+                        <div class="text-xs font-semibold uppercase text-gray-400 dark:text-gray-500 mb-1">Updated</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400" id="detail-updated"></div>
+                    </div>
+                    <div>
+                        <div class="text-xs font-semibold uppercase text-gray-400 dark:text-gray-500 mb-1">Duration</div>
+                        <div class="text-sm text-gray-700 dark:text-gray-300 font-medium" id="detail-durasi"></div>
+                    </div>
+                </div>
+                <div id="detail-deps-section" class="hidden mt-4">
+                    <div class="text-xs font-semibold uppercase text-gray-400 dark:text-gray-500 mb-1">Depends On</div>
+                    <div class="text-sm text-gray-700 dark:text-gray-300" id="detail-deps"></div>
+                </div>
+                <div id="detail-attachments-section" class="hidden mt-4">
+                    <div class="text-xs font-semibold uppercase text-gray-400 dark:text-gray-500 mb-1">Attachments</div>
+                    <div id="detail-attachments" class="grid grid-cols-2 sm:grid-cols-3 gap-2"></div>
+                </div>
+
+                <div class="flex justify-between items-center mb-3 mt-10">
+                    <button onclick="openEditFromDetail()" class="px-3 w-[100px] py-1.5 text-sm font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition">Edit</button>
+                </div>
+            </div>
+            <!-- Activity panel -->
+            <div class="kb-panel hidden" id="panel-activity">
+                <div id="activity-list" class="flex flex-col gap-0">
+                    <div class="text-sm text-gray-400 text-center py-8">Loading...</div>
+                </div>
+            </div>
+            <!-- Comments panel -->
+            <div class="kb-panel hidden" id="panel-comments">
+                <div id="comment-list" class="flex flex-col gap-3 mb-5"></div>
+                <div class="border-t border-gray-100 dark:border-gray-700 pt-4">
+                    <textarea id="comment-input" rows="3" placeholder="Add a comment..."
+                        class="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm resize-y bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-500 focus:border-indigo-400 dark:focus:border-indigo-500"></textarea>
+                    <div class="mt-2">
+                        <label for="comment-files" class="text-xs font-medium text-gray-500 dark:text-gray-400">Attach images</label>
+                        <input type="file" id="comment-files" accept=".png,.jpg,.jpeg,.gif,.webp,.bmp,image/png,image/jpeg,image/gif,image/webp,image/bmp" multiple
+                            class="block w-full mt-1 text-xs text-gray-600 dark:text-gray-300 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-indigo-50 file:text-indigo-600 dark:file:bg-indigo-900/30 dark:file:text-indigo-300">
+                        <div id="comment-files-list" class="mt-1 text-xs text-gray-500 dark:text-gray-400"></div>
+                    </div>
+                    <div class="flex justify-end mt-2">
+                        <button id="comment-submit-btn" onclick="submitComment()" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 dark:bg-indigo-500 rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                            <svg class="hidden animate-spin w-4 h-4" id="comment-spinner" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                            <span id="comment-btn-text">Post Comment</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <!-- Process panel -->
+            <div class="kb-panel hidden" id="panel-process">
+                <div id="process-list" class="flex flex-col gap-3"></div>
+            </div>
+            <!-- Edit panel -->
+            <div class="kb-panel hidden" id="panel-edit">
+                <form id="detail-edit-form" onsubmit="saveFromDetail(event)">
+                    <input type="hidden" id="detail-task-id">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="detail-task-title">Title *</label>
+                        <input class="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-500 focus:border-indigo-400 dark:focus:border-indigo-500" type="text" id="detail-task-title" required placeholder="Enter task title">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="detail-task-desc">Description</label>
+                        <textarea class="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm resize-y bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-500 focus:border-indigo-400 dark:focus:border-indigo-500" id="detail-task-desc" rows="3" placeholder="Enter task description"></textarea>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="detail-task-priority">Priority</label>
+                        <select class="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-500 focus:border-indigo-400 dark:focus:border-indigo-500" id="detail-task-priority">
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="detail-task-assignee">Assign to Agent (optional)</label>
+                        <select class="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-500 focus:border-indigo-400 dark:focus:border-indigo-500" id="detail-task-assignee">
+                            <option value="">-- None --</option>
+                        </select>
+                        <div id="detail-task-assignee-warning" class="hidden mt-1.5 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg px-3 py-2">This agent does not have the 'kanban' skill yet. To add this skill, go to Agent &gt; Settings &gt; Skills.</div>
+                    </div>
+                    <div class="mb-5">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Depends on (optional)</label>
+                        <div class="relative">
+                            <input type="text" id="detail-deps-search" autocomplete="off" placeholder="Search tasks…"
+                                class="w-full border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-500">
+                            <ul id="detail-deps-dropdown" class="hidden absolute z-50 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg mt-1 shadow-lg max-h-48 overflow-y-auto text-sm"></ul>
+                        </div>
+                        <ul id="detail-deps-selected" class="mt-2 flex flex-col gap-1"></ul>
+                    </div>
+                    <div class="mb-5">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Attachments (optional)</label>
+                        <div id="detail-existing-attachments" class="flex flex-col gap-1 mb-2"></div>
+                        <input type="file" id="detail-task-files" accept=".png,.jpg,.jpeg,.gif,.webp,.bmp,image/png,image/jpeg,image/gif,image/webp,image/bmp" multiple
+                            class="w-full text-sm text-gray-700 dark:text-gray-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100 dark:file:bg-indigo-900/30 dark:file:text-indigo-400 transition"
+                            onchange="handleDetailFilesSelected(this)">
+                        <div id="detail-task-files-error" class="hidden mt-1.5 text-xs text-red-600 dark:text-red-400"></div>
+                        <ul id="detail-task-files-list" class="mt-2 flex flex-col gap-1"></ul>
+                    </div>
+                    <div class="flex justify-end gap-2">
+                        <button type="button" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition" onclick="cancelEditFromDetail()">Cancel</button>
+                        <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 dark:bg-indigo-500 rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Assign Agents Modal -->
+<div class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center" id="kb-assign-modal">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl mx-4 p-6 flex flex-col" style="max-height:85vh;">
+        <div class="flex items-center justify-between mb-4 flex-shrink-0">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Assign Agents</h2>
+            <button onclick="closeAssignModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-xl leading-none">&times;</button>
+        </div>
+        <div class="flex-1 overflow-y-auto">
+            <div id="assign-loading" class="text-sm text-gray-400 dark:text-gray-500 text-center py-8">Loading proposal...</div>
+            <div id="assign-empty" class="hidden text-sm text-gray-500 dark:text-gray-400 text-center py-8">No unassigned todo tasks found.</div>
+            <div id="assign-no-agents" class="hidden text-sm text-gray-500 dark:text-gray-400 text-center py-8">No agents with the kanban skill found. Assign the kanban skill to agents in their settings.</div>
+            <table id="assign-table" class="hidden w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-200 dark:border-gray-700">
+                        <th class="text-left py-2 px-2 text-xs font-semibold uppercase text-gray-400 dark:text-gray-500">Task</th>
+                        <th class="text-left py-2 px-2 text-xs font-semibold uppercase text-gray-400 dark:text-gray-500 w-44">Agent</th>
+                    </tr>
+                </thead>
+                <tbody id="assign-tbody"></tbody>
+            </table>
+        </div>
+        <div id="assign-actions" class="hidden flex justify-between items-stretch gap-2 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 flex-shrink-0">
+            <button onclick="autoAssign()" id="assign-auto-btn" class="px-4 py-2 text-sm font-medium text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/50 transition flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                Auto
+            </button>
+            <div class="flex gap-2">
+                <button onclick="closeAssignModal()" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition">Cancel</button>
+                <button onclick="confirmAssign()" id="assign-confirm-btn" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 dark:bg-indigo-500 rounded-lg hover:bg-indigo-700 dark:hover:bg-indigo-600 transition">Confirm Assignment</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Trigger Agent Selection Modal (Task #36) -->
+<div class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center" id="kb-trigger-modal" role="dialog" aria-modal="true" aria-labelledby="trigger-modal-title">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 id="trigger-modal-title" class="text-lg font-semibold text-gray-900 dark:text-gray-100">Select Agent</h2>
+            <button type="button" onclick="closeTriggerModal()" aria-label="Close agent selection" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-xl leading-none">&times;</button>
+        </div>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Choose an agent to trigger for this task:</p>
+        <div id="trigger-agent-search-wrap" class="hidden relative mb-4">
+            <label for="trigger-agent-search" class="sr-only">Search agents</label>
+            <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-4.35-4.35m2.35-5.65a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z"/></svg>
+            <input type="text" id="trigger-agent-search" autocomplete="off" placeholder="Search agents..." class="w-full rounded-lg border border-gray-200 bg-white py-2 pl-10 pr-3 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-indigo-500 dark:focus:ring-indigo-500">
+        </div>
+        <div id="trigger-loading" class="text-sm text-gray-400 dark:text-gray-500 text-center py-4">Loading agents...</div>
+        <div id="trigger-no-agents" class="hidden text-sm text-gray-500 dark:text-gray-400 text-center py-4">No agents available.</div>
+        <div id="trigger-no-results" class="hidden text-sm text-gray-500 dark:text-gray-400 text-center py-4" role="status">No agents match your search.</div>
+        <div id="trigger-agent-list" class="hidden grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-80 overflow-y-auto" aria-live="polite"></div>
+        <div id="trigger-actions" class="hidden flex justify-center gap-2 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+            <button type="button" onclick="closeTriggerModal()" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Trigger Results Modal -->
+<div class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center" id="kb-trigger-results-modal">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Trigger Results</h2>
+            <button onclick="closeTriggerResultsModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-xl leading-none">&times;</button>
+        </div>
+        <div id="trigger-results-body" class="max-h-80 overflow-y-auto text-sm"></div>
+        <div class="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+            <button onclick="closeTriggerResultsModal()" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Settings Modal -->
+
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.0/dist/purify.min.js"></script>
+<script>
+    const API = '/api/kanban';
+    const SUPER_AGENT_ID = '{{ super_agent_id }}';
+    let tasks = [];
+    let currentDetailId = null;
+    let _isEditing = false;  // true when editing existing task — prevents backdrop-click-close
+
+    const PRIORITY_BADGE = {
+        high: 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400',
+        medium: 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-400',
+        low: 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400',
+    };
+
+    const ACTION_DOT = {
+        created: 'bg-indigo-500',
+        status_changed: 'bg-blue-400',
+        updated: 'bg-gray-400',
+        released: 'bg-gray-400',
+        commented: 'bg-purple-500',
+    };
+
+    function esc(text) {
+        return $('<div>').text(text || '').html();
+    }
+
+    function stripMarkdown(text) {
+        if (!text) return '';
+        return text
+            .replace(/```[\s\S]*?```/g, '')
+            .replace(/`[^`]*`/g, '')
+            .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+            .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+            .replace(/\*{1,3}([^*]+)\*{1,3}/g, '$1')
+            .replace(/_{1,3}([^_]+)_{1,3}/g, '$1')
+            .replace(/~{1,2}([^~]+)~{1,2}/g, '$1')
+            .replace(/^#{1,6}\s*/gm, '')
+            .replace(/^[-*+]\s+/gm, '')
+            .replace(/^\d+\.\s+/gm, '')
+            .replace(/\n+/g, ' ')
+            .replace(/\s{2,}/g, ' ')
+            .trim();
+    }
+
+    function renderMarkdown(text) {
+        if (!text) return '';
+        try {
+            const rawHtml = marked.parse(text);
+            return DOMPurify.sanitize(rawHtml);
+        } catch (e) {
+            return esc(text);
+        }
+    }
+
+    function fmt(dateStr) {
+        if (!dateStr) return '—';
+        const d = new Date(dateStr);
+        return d.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function fmtShort(dateStr) {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function fmtDuration(task) {
+        if (!task.started_at) return '';
+        const start = new Date(task.started_at);
+        const end = task.status === 'done' && task.completed_at ? new Date(task.completed_at) : new Date();
+        const diffMs = end - start;
+        if (diffMs < 0) return '';
+        const totalMinutes = Math.floor(diffMs / 60000);
+        const hours = Math.floor(totalMinutes / 60);
+        const mins = totalMinutes % 60;
+
+        if (hours > 0 && mins > 0) return hours + ' jam ' + mins + ' menit';
+        if (hours > 0) return hours + ' jam';
+        if (mins > 0) return mins + ' menit';
+        return '< 1 menit';
+    }
+
+    // ── Board ─────────────────────────────────────────────────────────────────
+
+    let searchKeyword = '';
+    let previousTasksFingerprint = '';
+    let loadTasksInFlight = false;
+
+    // Compute a stable fingerprint from task fields that affect the UI.
+    // Ignores created_at/updated_at to avoid re-renders on timestamp-only changes.
+    function computeTasksFingerprint(taskList) {
+        const keys = ['id','title','description','status','priority','assignee','archived_at','completed_at','paused_at','started_at'];
+        // Build a compact, sorted representation for reliable comparison
+        const norm = taskList.map(t => keys.map(k => String(t[k] ?? '')).join('|')).sort().join('~');
+        // Simple hash to keep fingerprint short
+        let hash = 0;
+        for (let i = 0; i < norm.length; i++) {
+            const ch = norm.charCodeAt(i);
+            hash = ((hash << 5) - hash) + ch;
+            hash |= 0;
+        }
+        return String(hash);
+    }
+
+    function syncSearch(el) {
+        const val = el.value;
+        const desktop = document.getElementById('search-input-desktop');
+        const mobile = document.getElementById('search-input-mobile');
+        if (desktop && desktop !== el) desktop.value = val;
+        if (mobile && mobile !== el) mobile.value = val;
+    }
+
+    function applySearch() {
+        const desktop = document.getElementById('search-input-desktop');
+        const mobile = document.getElementById('search-input-mobile');
+        searchKeyword = (desktop?.value || mobile?.value || '').trim();
+        renderBoard();
+        updateSearchUI();
+    }
+
+    function clearSearch() {
+        searchKeyword = '';
+        const desktop = document.getElementById('search-input-desktop');
+        const mobile = document.getElementById('search-input-mobile');
+        if (desktop) desktop.value = '';
+        if (mobile) mobile.value = '';
+        renderBoard();
+        updateSearchUI();
+    }
+
+    function updateSearchUI() {
+        const link = document.getElementById('clear-search-link');
+        const linkMobile = document.getElementById('clear-search-link-mobile');
+        if (searchKeyword) {
+            if (link) link.classList.remove('hidden');
+            if (linkMobile) linkMobile.classList.remove('hidden');
+            if (typeof refreshLucide === 'function') refreshLucide();
+        } else {
+            if (link) link.classList.add('hidden');
+            if (linkMobile) linkMobile.classList.add('hidden');
+        }
+    }
+
+    function hideKanbanSkeleton() {
+        document.querySelectorAll('.kanban-skeleton').forEach(function(el) { el.style.display = 'none'; });
+    }
+
+    function showKanbanError() {
+        hideKanbanSkeleton();
+        var banner = document.getElementById('kanban-error-banner');
+        if (banner) banner.classList.add('show');
+    }
+
+    function hideKanbanError() {
+        var banner = document.getElementById('kanban-error-banner');
+        if (banner) banner.classList.remove('show');
+    }
+
+    function loadTasks(callback) {
+        if (loadTasksInFlight) return;
+        loadTasksInFlight = true;
+        $.get(`${API}/tasks`, function(data) {
+            loadTasksInFlight = false;
+            hideKanbanSkeleton();
+            hideKanbanError();
+            const newTasks = data.tasks || [];
+            const newFP = computeTasksFingerprint(newTasks);
+            tasks = newTasks;
+            if (newFP !== previousTasksFingerprint) {
+                previousTasksFingerprint = newFP;
+                renderBoard();
+            }
+            if (typeof callback === 'function') callback();
+        }).fail(function() {
+            loadTasksInFlight = false;
+            hideKanbanSkeleton();
+            showKanbanError();
+            console.error('Failed to load tasks');
+        });
+    }
+
+    function renderBoard() {
+        const MAX_VISIBLE = 10;
+        const kw = searchKeyword.toLowerCase();
+
+        function matchesSearch(task) {
+            if (!kw) return true;
+            return (task.title || '').toLowerCase().includes(kw) ||
+                   (task.description || '').toLowerCase().includes(kw) ||
+                   String(task.id).includes(kw);
+        }
+
+        ['todo', 'in-progress', 'done'].forEach(status => {
+            const all = tasks.filter(t => t.status === status && !t.archived_at && matchesSearch(t))
+                .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at));
+            $(`#count-${status}`).text(all.length);
+            const $list = $(`#list-${status}`);
+            if (all.length === 0) {
+                $list.html('<div class="text-center text-gray-400 text-sm py-4">No tasks</div>');
+                return;
+            }
+            const visible = all.slice(0, MAX_VISIBLE);
+            const extra = all.length - MAX_VISIBLE;
+            let html = visible.map(renderCard).join('');
+            if (extra > 0) {
+                html += `<div class="text-center text-gray-400 dark:text-gray-500 text-xs py-2 italic">${extra} more...</div>`;
+            }
+            $list.html(html);
+        });
+
+        // Attach drop-zone handlers to non-archived columns
+        setupDropZones();
+
+        // Render archived column (also limited)
+        const allArchived = tasks.filter(t => t.archived_at && matchesSearch(t))
+            .sort((a, b) => new Date(b.archived_at) - new Date(a.archived_at));
+        $('#count-archived').text(allArchived.length);
+        const $archivedList = $('#list-archived');
+        if (allArchived.length === 0) {
+            $archivedList.html('<div class="text-center text-gray-400 text-sm py-4">No archived tasks</div>');
+        } else {
+            const visArchived = allArchived.slice(0, MAX_VISIBLE);
+            const extraArchived = allArchived.length - MAX_VISIBLE;
+            let html = visArchived.map(renderArchivedCard).join('');
+            if (extraArchived > 0) {
+                html += `<div class="text-center text-gray-400 dark:text-gray-500 text-xs py-2 italic">${extraArchived} more...</div>`;
+            }
+            $archivedList.html(html);
+        }
+
+        // Check for auto-archive (done tasks > 3 days without archived_at)
+        checkAutoArchive();
+    }
+
+    function fmtDate(dateStr) {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        const m = d.toLocaleString('en-US', { month: 'short' });
+        const day = d.getDate();
+        return `${m} ${day}`;
+    }
+
+    function renderCard(task) {
+        const pBadge = PRIORITY_BADGE[task.priority] || PRIORITY_BADGE.medium;
+        const moveButtons = getMoveButtons(task);
+        const initials = task.assignee ? esc(task.assignee).split(/[\s._-]+/).filter(Boolean).map(s => s[0].toUpperCase()).slice(0, 2).join('') : '';
+        const hasAssignee = !!(task.assignee);
+        const hasAvatar = hasAgentAvatar(task.assignee);
+        const nUrl = task.assignee ? `/api/agents/${esc(task.assignee)}/avatar` : '';
+        const agentTitle = task.assignee ? esc(getAgentName(task.assignee)) : '';
+        const rocketBtn = task.status === 'todo' ? `<button class="text-[10px] px-1.5 py-0.5 rounded bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400 hover:bg-orange-200 dark:hover:bg-orange-900/50 transition" title="Trigger agent" onclick="handleTrigger(${task.id}, ${hasAssignee}, event)">🚀</button>` : '';
+        return `
+        <div class="bg-white dark:bg-gray-700 rounded-lg p-3 shadow-sm hover:shadow-md dark:shadow-gray-900/30 transition border border-gray-200 dark:border-gray-700 cursor-grab active:cursor-grabbing" data-id="${task.id}" draggable="true" ondragstart="handleDragStart(event)" ondragend="handleDragEnd(event)">
+            <div class="text-xs font-semibold text-gray-800 dark:text-gray-100 mb-1 break-words cursor-pointer" onclick="openDetailModal(${task.id})"><span class="text-gray-500 dark:text-gray-400 font-semibold">#${task.id} &bull;</span> ${esc(decodeHtmlEntities(task.title))}</div>
+            ${task.description ? `<div class="text-[11px] text-gray-500 dark:text-gray-400 mb-2 line-clamp-2 break-words cursor-pointer" onclick="openDetailModal(${task.id})">${esc(decodeHtmlEntities(stripMarkdown(task.description)))}</div>` : ''}
+            ${(task.deps && task.deps.length > 0 && !task.deps_met) ? `<div class="text-[10px] text-amber-600 dark:text-amber-400 mb-1.5 flex items-center gap-1">&#128274; blocked by ${task.deps.map(d => '#' + d).join(', ')}</div>` : ''}
+            <div class="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                <span class="text-[10px] font-semibold uppercase rounded px-1.5 py-0.5 ${pBadge}">${esc(task.priority || 'low')}</span>
+                ${rocketBtn}
+                ${(task.status === 'in-progress' || (task.status === 'done' && task.started_at)) ? `<span class="flex items-center gap-1 text-[10px] text-indigo-500 dark:text-indigo-400 mx-auto"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>${fmtDuration(task)}</span>` : ''}
+                ${task.assignee ? (hasAvatar
+                    ? `<span class="ml-auto inline-flex items-center gap-0"><img src="${nUrl}" alt="" class="w-5 h-5 rounded-full object-cover" title="${agentTitle}" onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.style.display='inline-flex'"><span class="hidden items-center justify-center w-5 h-5 rounded-full text-[9px] font-semibold ${task.assignee === SUPER_AGENT_ID ? 'bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400' : 'bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300'}" title="${agentTitle}">${initials}</span></span>`
+                    : `<span class="ml-auto inline-flex items-center justify-center w-5 h-5 rounded-full text-[9px] font-semibold ${task.assignee === SUPER_AGENT_ID ? 'bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400' : 'bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300'}" title="${agentTitle}">${initials}</span>`
+                ) : ''}
+            </div>
+            <div class="flex gap-1 pt-1.5 border-t border-gray-100 dark:border-gray-700 flex-wrap">
+                ${moveButtons}
+                <button class="p-1 rounded text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition cursor-pointer" onclick="deleteTask(${task.id})" title="Delete"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+            </div>
+        </div>`;
+    }
+
+    function getMoveButtons(task) {
+        const prev = { 'in-progress': 'todo', 'done': 'in-progress' }[task.status];
+        const next = { 'todo': 'in-progress', 'in-progress': 'done' }[task.status];
+        let btns = '';
+        if (prev) btns += `<button class="flex-1 text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition" onclick="moveTask(${task.id},'${prev}')">&#8592; ${prev.replace('-', ' ')}</button>`;
+        if (next) btns += `<button class="flex-1 text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition" onclick="moveTask(${task.id},'${next}')">&#8594; ${next.replace('-', ' ')}</button>`;
+        return btns;
+    }
+
+    function renderArchivedCard(task) {
+        const pBadge = PRIORITY_BADGE[task.priority] || PRIORITY_BADGE.medium;
+        return `
+        <div class="bg-white dark:bg-gray-700 rounded-lg p-3 shadow-sm dark:shadow-gray-900/30 border border-gray-200 dark:border-gray-700" data-id="${task.id}">
+            <div class="text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1 break-words" onclick="openDetailModal(${task.id})"><span class="text-gray-500 dark:text-gray-400 font-semibold">#${task.id} •</span> ${esc(decodeHtmlEntities(task.title))}</div>
+            <div class="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                <span class="text-[10px] font-semibold uppercase rounded px-1.5 py-0.5 ${pBadge}">${esc(task.priority || 'low')}</span>
+                <span class="text-[10px] text-gray-400 dark:text-gray-500">Status: ${esc(task.status)}</span>
+                <span class="text-[10px] text-gray-400 dark:text-gray-500 ml-auto">${fmtShort(task.archived_at)}</span>
+            </div>
+            <div class="flex gap-1 pt-1.5 border-t border-gray-100 dark:border-gray-700 flex-wrap">
+                <button class="inline-flex items-center gap-1 px-2 py-1 rounded bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition text-xs font-medium" onclick="unarchiveTask(${task.id})" title="Unarchive"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a5 5 0 015 5v2M3 10l4-4m-4 4l4 4"/></svg>Unarchive</button>
+                <button class="p-1 rounded text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition cursor-pointer ml-auto" onclick="deleteTask(${task.id})" title="Delete"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+            </div>
+        </div>`;
+    }
+
+    function checkAutoArchive() {
+        const now = new Date();
+        const threshold = new Date(now.getTime() - 72 * 60 * 60 * 1000);
+        const toArchive = tasks.filter(t =>
+            t.status === 'done' &&
+            !t.archived_at &&
+            t.updated_at &&
+            new Date(t.updated_at) < threshold
+        );
+
+        if (toArchive.length === 0) return;
+
+        toArchive.forEach(task => {
+            $.post(`${API}/tasks/${task.id}/archive`, loadTasks);
+        });
+    }
+
+    function archiveTask(taskId) {
+        $.ajax({
+            url: `${API}/tasks/${taskId}/archive`,
+            method: 'POST',
+            success: loadTasks,
+            error: function(xhr) {
+                alert(xhr.responseJSON?.error || 'Failed to archive task');
+            }
+        });
+    }
+
+    function unarchiveTask(taskId) {
+        $.ajax({
+            url: `${API}/tasks/${taskId}/unarchive`,
+            method: 'POST',
+            success: loadTasks,
+            error: function(xhr) {
+                alert(xhr.responseJSON?.error || 'Failed to unarchive task');
+            }
+        });
+    }
+
+    function clearAllArchived() {
+        showConfirm({
+            title: 'Clear All Archived',
+            message: 'Are you sure you want to delete all archived tasks? This action cannot be undone.',
+            confirmText: 'Clear All',
+            cancelText: 'Cancel',
+            danger: true,
+            onConfirm: function() {
+                $.ajax({
+                    url: `${API}/archived/clear`,
+                    method: 'DELETE',
+                    success: loadTasks,
+                    error: function(xhr) {
+                        alert(xhr.responseJSON?.error || 'Failed to clear archived tasks');
+                    }
+                });
+            }
+        });
+    }
+
+    // ── Drag & Drop ──────────────────────────────────────────────────
+
+    function handleDragStart(e) {
+        const card = e.target.closest('[data-id]');
+        if (!card) return;
+        e.dataTransfer.setData('text/plain', card.dataset.id);
+        e.dataTransfer.effectAllowed = 'move';
+        card.classList.add('dragging');
+    }
+
+    function handleDragEnd(e) {
+        const card = e.target.closest('[data-id]');
+        if (card) card.classList.remove('dragging');
+        $('.task-list').removeClass('drag-over');
+    }
+
+    function setupDropZones() {
+        $('#list-todo, #list-in-progress, #list-done').off('dragover dragenter dragleave drop').on({
+            dragover: function(e) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+            },
+            dragenter: function(e) {
+                e.preventDefault();
+                $(this).addClass('drag-over');
+            },
+            dragleave: function(e) {
+                $(this).removeClass('drag-over');
+            },
+            drop: function(e) {
+                e.preventDefault();
+                $(this).removeClass('drag-over');
+                const taskId = parseInt(e.dataTransfer.getData('text/plain'));
+                if (!taskId) return;
+                const col = $(this).closest('[data-status]');
+                const newStatus = col.data('status');
+                if (newStatus) moveTask(taskId, newStatus);
+            }
+        });
+    }
+
+    // ── CRUD ──────────────────────────────────────────────────────────
+
+    function moveTask(taskId, status) {
+        const task = tasks.find(t => t.id === taskId);
+        if (task && task.status === status) return;
+        $.ajax({ url: `${API}/tasks/${taskId}`, method: 'PUT',
+            contentType: 'application/json', data: JSON.stringify({ status }),
+            success: loadTasks,
+            error: function(xhr) { alert(xhr.responseJSON?.error || 'Failed to move task'); }
+        });
+    }
+
+    async function deleteTask(taskId) {
+        const confirmed = await showConfirm({
+            title: 'Delete Task',
+            message: 'Are you sure you want to delete this task? This action cannot be undone.',
+            confirmText: 'Delete',
+            cancelText: 'Cancel',
+            danger: true
+        });
+        if (!confirmed) return;
+        $.ajax({ url: `${API}/tasks/${taskId}`, method: 'DELETE',
+            success: loadTasks,
+            error: function(xhr) { alert(xhr.responseJSON?.error || 'Failed to delete task'); }
+        });
+    }
+
+    // ── Create/Edit Modal ─────────────────────────────────────────────────────
+
+    // ── Deps autocomplete state ───────────────────────────────────────────────
+    let _depsCurrentTaskId = null;
+    let _depsSelected = []; // [{id, title}, ...]
+    let _depsAvailable = []; // [{id, title, status}, ...] from server
+    let _depsSearchTimer = null;
+
+    function _depsRenderSelected(selectedId = 'task-deps-selected') {
+        const $list = $(`#${selectedId}`);
+        $list.empty();
+        _depsSelected.forEach(dep => {
+            $list.append(
+                $('<li>').addClass('flex items-center justify-between gap-2 px-2.5 py-1 bg-gray-100 dark:bg-gray-600 rounded text-xs text-gray-700 dark:text-gray-200')
+                    .append($('<span>').text(`#${dep.id} ${dep.title}`))
+                    .append(
+                        $('<button>').attr('type', 'button').addClass('text-gray-400 hover:text-red-500 transition ml-auto flex-shrink-0')
+                            .html('&times;')
+                            .on('click', () => { _depsSelected = _depsSelected.filter(d => d.id !== dep.id); _depsRenderSelected(selectedId); })
+                    )
+            );
+        });
+    }
+
+    function _depsRenderDropdown(query, dropdownId = 'task-deps-dropdown', searchId = 'task-deps-search', selectedId = 'task-deps-selected') {
+        const $dd = $(`#${dropdownId}`);
+        const q = query.toLowerCase();
+        const selectedIds = new Set(_depsSelected.map(d => d.id));
+        const matches = _depsAvailable.filter(t =>
+            !selectedIds.has(t.id) &&
+            (`#${t.id} ${t.title}`.toLowerCase().includes(q))
+        );
+        $dd.empty();
+        if (!matches.length) {
+            $dd.append($('<li>').addClass('px-3 py-2 text-gray-400 dark:text-gray-500').text('No tasks found'));
+        } else {
+            matches.forEach(t => {
+                const statusBadge = t.status === 'in-progress'
+                    ? '<span class="ml-1 text-[9px] uppercase font-semibold text-blue-500">in-progress</span>'
+                    : '';
+                $dd.append(
+                    $('<li>').addClass('px-3 py-2 cursor-pointer hover:bg-indigo-50 dark:hover:bg-gray-600 flex items-center gap-1')
+                        .html(`<span class="text-gray-500 dark:text-gray-400 font-medium">#${t.id}</span> <span>${esc(t.title)}</span>${statusBadge}`)
+                        .on('mousedown', (e) => {
+                            e.preventDefault();
+                            _depsSelected.push({id: t.id, title: t.title});
+                            _depsRenderSelected(selectedId);
+                            $(`#${searchId}`).val('');
+                            $dd.addClass('hidden');
+                        })
+                );
+            });
+        }
+        $dd.removeClass('hidden');
+    }
+
+    async function _depsLoadAvailable(excludeId) {
+        const url = `${API}/tasks/available-deps` + (excludeId ? `?exclude=${excludeId}` : '');
+        const res = await fetch(url);
+        const data = await res.json();
+        _depsAvailable = data.tasks || [];
+    }
+
+    function _depsInitSearch(searchId = 'task-deps-search', dropdownId = 'task-deps-dropdown', selectedId = 'task-deps-selected') {
+        const $input = $(`#${searchId}`);
+        const $dd = $(`#${dropdownId}`);
+        $input.off('input focus blur').on('input', function() {
+            clearTimeout(_depsSearchTimer);
+            _depsSearchTimer = setTimeout(() => _depsRenderDropdown($input.val(), dropdownId, searchId, selectedId), 150);
+        }).on('focus', function() {
+            _depsRenderDropdown($input.val(), dropdownId, searchId, selectedId);
+        }).on('blur', function() {
+            setTimeout(() => $dd.addClass('hidden'), 200);
+        });
+    }
+
+    async function initDepsWidget(currentTaskId, selectedDeps, {searchId='task-deps-search', dropdownId='task-deps-dropdown', selectedId='task-deps-selected'} = {}) {
+        _depsCurrentTaskId = currentTaskId;
+        _depsSelected = [];
+        $(`#${searchId}`).val('');
+        $(`#${dropdownId}`).addClass('hidden');
+        await _depsLoadAvailable(currentTaskId);
+        // Pre-populate selected from existing deps (match against available + fallback to tasks list)
+        (selectedDeps || []).forEach(depId => {
+            const found = _depsAvailable.find(t => t.id === depId)
+                || (tasks || []).find(t => t.id === depId);
+            if (found) _depsSelected.push({id: found.id, title: found.title});
+        });
+        _depsRenderSelected(selectedId);
+        _depsInitSearch(searchId, dropdownId, selectedId);
+    }
+
+    function _depsGetSelectedIds() {
+        return _depsSelected.map(d => d.id);
+    }
+
+    // ---- Attachments (create/edit form) ----
+    let _pendingFiles = [];
+    let _pendingDetailFiles = [];
+    const _ALLOWED_IMAGE_RE = /\.(png|jpe?g|gif|webp|bmp)$/i;
+    const _MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+
+    function _validateImageFile(file) {
+        if (!_ALLOWED_IMAGE_RE.test(file.name)) {
+            return `"${file.name}" is not a supported image. Only PNG, JPG, JPEG, GIF, WEBP and BMP are allowed.`;
+        }
+        if (file.size > _MAX_FILE_SIZE) {
+            return `"${file.name}" is too large (${Math.ceil(file.size / (1024 * 1024))} MB). Maximum size is 10 MB per file.`;
+        }
+        return null;
+    }
+
+    function _fileThumbHtml(f) {
+        if (f.preview) {
+            return `<img src="${f.preview}" class="w-8 h-8 object-cover rounded border border-gray-200 dark:border-gray-600 flex-shrink-0">`;
+        }
+        return '<span class="w-8 h-8 rounded bg-gray-100 dark:bg-gray-700 flex-shrink-0 flex items-center justify-center text-gray-400">\uD83D\uDCC4</span>';
+    }
+
+    function _renderPendingFiles(listId, errorId, arr, removeFn) {
+        const $list = $(`#${listId}`);
+        const $err = $(`#${errorId}`);
+        $err.addClass('hidden').text('');
+        if (!arr.length) {
+            $list.html('<li class="text-xs text-gray-400 dark:text-gray-500">No files selected.</li>');
+            return;
+        }
+        $list.html(arr.map(function(f, i) {
+            return `<li class="flex items-center gap-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg px-2 py-1.5">
+                ${_fileThumbHtml(f)}
+                <span class="text-xs text-gray-700 dark:text-gray-300 truncate flex-1" title="${esc(f.name)}">${esc(f.name)}</span>
+                <button type="button" class="text-gray-400 hover:text-red-500 text-sm leading-none flex-shrink-0" title="Remove" onclick="${removeFn}(${i})">&times;</button>
+            </li>`;
+        }).join(''));
+    }
+
+    function _removePendingFile(index) {
+        const f = _pendingFiles[index];
+        if (f && f.preview) URL.revokeObjectURL(f.preview);
+        _pendingFiles.splice(index, 1);
+        _renderPendingFiles('task-files-list', 'task-files-error', _pendingFiles, '_removePendingFile');
+    }
+
+    function _removePendingDetailFile(index) {
+        const f = _pendingDetailFiles[index];
+        if (f && f.preview) URL.revokeObjectURL(f.preview);
+        _pendingDetailFiles.splice(index, 1);
+        _renderPendingFiles('detail-task-files-list', 'detail-task-files-error', _pendingDetailFiles, '_removePendingDetailFile');
+    }
+
+    function _collectSelectedFiles(filesSource, arr, renderFn, errorId) {
+        const files = Array.from(filesSource || []);
+        if (!files.length) return;
+        const errors = [];
+        files.forEach(function(f) {
+            const err = _validateImageFile(f);
+            if (err) {
+                errors.push(err);
+            } else {
+                if (f.type && f.type.indexOf('image/') === 0 && typeof URL !== 'undefined') {
+                    f.preview = URL.createObjectURL(f);
+                }
+                arr.push(f);
+            }
+        });
+        renderFn();
+        if (errors.length) {
+            $('#' + errorId).removeClass('hidden').text(errors.join(' '));
+        }
+    }
+
+    function handleFilesSelected(input) {
+        _collectSelectedFiles(
+            input.files,
+            _pendingFiles,
+            function() { _renderPendingFiles('task-files-list', 'task-files-error', _pendingFiles, '_removePendingFile'); },
+            'task-files-error'
+        );
+        $(input).val('');
+    }
+
+    function handleTaskFilesDrag(event, isOver) {
+        event.preventDefault();
+        event.stopPropagation();
+        $('#task-files-dropzone').toggleClass('border-indigo-500 bg-indigo-50 dark:border-indigo-400 dark:bg-indigo-900/30', isOver);
+    }
+
+    function handleTaskFilesDrop(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        $('#task-files-dropzone').removeClass('border-indigo-500 bg-indigo-50 dark:border-indigo-400 dark:bg-indigo-900/30');
+        _collectSelectedFiles(
+            event.dataTransfer ? event.dataTransfer.files : [],
+            _pendingFiles,
+            function() { _renderPendingFiles('task-files-list', 'task-files-error', _pendingFiles, '_removePendingFile'); },
+            'task-files-error'
+        );
+    }
+
+    function handleDetailFilesSelected(input) {
+        _collectSelectedFiles(
+            input.files,
+            _pendingDetailFiles,
+            function() { _renderPendingFiles('detail-task-files-list', 'detail-task-files-error', _pendingDetailFiles, '_removePendingDetailFile'); },
+            'detail-task-files-error'
+        );
+        $(input).val('');
+    }
+
+    function _clearPendingFiles(arr) {
+        arr.forEach(function(f) { if (f.preview) URL.revokeObjectURL(f.preview); });
+        arr.length = 0;
+    }
+
+    function uploadAttachments(taskId, files, done) {
+        if (!files || !files.length) { done([]); return; }
+        const fd = new FormData();
+        files.forEach(f => fd.append('files', f, f.name));
+        $.ajax({
+            url: `${API}/tasks/${taskId}/attachments`,
+            method: 'POST',
+            data: fd,
+            processData: false,
+            contentType: false,
+            success: function() { done([]); },
+            error: function(xhr) {
+                done([xhr.responseJSON?.error || 'Attachment upload failed. Please try again.']);
+            }
+        });
+    }
+
+    function afterSave(taskId) {
+        if (!taskId || !_pendingFiles.length) {
+            _clearPendingFiles(_pendingFiles);
+            closeModal();
+            loadTasks();
+            return;
+        }
+        const files = _pendingFiles.slice();
+        _pendingFiles = [];
+        uploadAttachments(taskId, files, function(errors) {
+            if (errors && errors.length) {
+                alert('Task saved, but some attachments failed:\n' + errors.join('\n'));
+            }
+            closeModal();
+            loadTasks();
+        });
+    }
+
+    // ---- Attachments (detail modal) ----
+
+    function renderAttachmentCard(a) {
+        return `<div class="relative group bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
+            <a href="${esc(a.url)}" target="_blank" rel="noopener" class="block" title="${esc(a.filename)}">
+                <img src="${esc(a.url)}" alt="${esc(a.filename)}" class="w-full h-24 object-cover bg-gray-100 dark:bg-gray-800" loading="lazy"
+                    onerror="this.style.display='none'">
+                <div class="px-2 py-1.5 text-xs text-gray-700 dark:text-gray-300 truncate">${esc(a.filename)}</div>
+            </a>
+            <button type="button" onclick="deleteAttachment(${a.id})" title="Delete attachment"
+                class="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/50 text-white text-xs opacity-0 group-hover:opacity-100 hover:bg-red-600 transition flex items-center justify-center">&times;</button>
+        </div>`;
+    }
+
+    function renderDetailExistingAttachments(task) {
+        const atts = task.attachments || [];
+        const $el = $('#detail-existing-attachments');
+        if (!atts.length) {
+            $el.html('<div class="text-xs text-gray-400 dark:text-gray-500">No attachments yet.</div>');
+            return;
+        }
+        $el.html(atts.map(a => `<div class="flex items-center gap-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg px-2 py-1.5">
+            <a href="${esc(a.url)}" target="_blank" rel="noopener" class="flex items-center gap-2 flex-1 min-w-0" title="${esc(a.filename)}">
+                <img src="${esc(a.url)}" alt="" class="w-8 h-8 object-cover rounded border border-gray-200 dark:border-gray-600 flex-shrink-0" loading="lazy" onerror="this.style.display='none'">
+                <span class="text-xs text-gray-700 dark:text-gray-300 truncate">${esc(a.filename)}</span>
+            </a>
+            <button type="button" class="text-gray-400 hover:text-red-500 text-sm leading-none flex-shrink-0" title="Delete attachment" onclick="deleteAttachmentFromEdit(${a.id})">&times;</button>
+        </div>`).join(''));
+    }
+
+    function _refreshDetailAttachments() {
+        const task = tasks.find(t => t.id === currentDetailId);
+        if (!task) return;
+        const atts = task.attachments || [];
+        if (atts.length) {
+            $('#detail-attachments').html(atts.map(renderAttachmentCard).join(''));
+            $('#detail-attachments-section').removeClass('hidden');
+        } else {
+            $('#detail-attachments-section').addClass('hidden');
+            $('#detail-attachments').empty();
+        }
+    }
+
+    function deleteAttachment(attachmentId) {
+        if (!confirm('Delete this attachment?')) return;
+        const taskId = currentDetailId;
+        $.ajax({
+            url: `${API}/attachments/${attachmentId}`,
+            method: 'DELETE',
+            success: function() {
+                const task = tasks.find(t => t.id === taskId);
+                if (task && task.attachments) {
+                    task.attachments = task.attachments.filter(a => a.id !== attachmentId);
+                }
+                _refreshDetailAttachments();
+                loadActivity(taskId);
+            },
+            error: function(xhr) { alert(xhr.responseJSON?.error || 'Failed to delete attachment'); }
+        });
+    }
+
+    function deleteAttachmentFromEdit(attachmentId) {
+        if (!confirm('Delete this attachment?')) return;
+        const taskId = currentDetailId;
+        $.ajax({
+            url: `${API}/attachments/${attachmentId}`,
+            method: 'DELETE',
+            success: function() {
+                const task = tasks.find(t => t.id === taskId);
+                if (task && task.attachments) {
+                    task.attachments = task.attachments.filter(a => a.id !== attachmentId);
+                }
+                renderDetailExistingAttachments(task);
+                loadActivity(taskId);
+            },
+            error: function(xhr) { alert(xhr.responseJSON?.error || 'Failed to delete attachment'); }
+        });
+    }
+
+    function openCreateModal() {
+        _isEditing = false;
+        $('#task-id').val('');
+        $('#task-form')[0].reset();
+        $('#task-assignee').val('');
+        $('#modal-title').text('Add Task');
+        $('#modal-submit').text('Create Task');
+        populateAgentSelect('#task-assignee');
+        initDepsWidget(null, []);
+        _clearPendingFiles(_pendingFiles);
+        $('#task-files-error').addClass('hidden').text('');
+        $('#task-files-list').empty();
+        $('#kb-modal').removeClass('hidden').addClass('flex');
+    }
+
+    function editTask(taskId) {
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) return;
+        _isEditing = true;  // prevent backdrop-click-close during editing
+        $('#task-id').val(task.id);
+        $('#task-title').val(task.title);
+        $('#task-desc').val(task.description || '');
+        setTimeout(function() { autoGrowTextarea(document.getElementById('task-desc')); }, 0);
+        $('#task-priority').val(task.priority || 'low');
+        populateAgentSelect('#task-assignee', task.assignee || '');
+        initDepsWidget(task.id, task.deps || []);
+        _clearPendingFiles(_pendingFiles);
+        $('#task-files-error').addClass('hidden').text('');
+        $('#task-files-list').empty();
+        $('#modal-title').text('Edit Task');
+        $('#modal-submit').text('Save Changes');
+        $('#kb-modal').removeClass('hidden').addClass('flex');
+    }
+
+    function closeModal() {
+        _isEditing = false;
+        _clearPendingFiles(_pendingFiles);
+        $('#task-files-error').addClass('hidden').text('');
+        $('#task-files-list').empty();
+        $('#kb-modal').removeClass('flex').addClass('hidden');
+    }
+
+    function handleSubmit(e) {
+        e.preventDefault();
+        const $btn = $('#modal-submit');
+        if ($btn.prop('disabled')) return; // prevent double-submit
+        const taskId = $('#task-id').val();
+        const payload = {
+            title: $('#task-title').val().trim(),
+            description: $('#task-desc').val().trim(),
+            priority: $('#task-priority').val(),
+            assignee: $('#task-assignee').val().trim() || null,
+            deps: _depsSelected.map(d => d.id),
+        };
+        if (!payload.title) return;
+
+        // Disable button and show spinner immediately
+        const origText = $btn.text();
+        $btn.prop('disabled', true).html(
+            '<svg class="w-4 h-4 animate-spin inline-block mr-1.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>' + origText
+        );
+
+        if (taskId) {
+            $.ajax({ url: `${API}/tasks/${taskId}`, method: 'PUT',
+                contentType: 'application/json', data: JSON.stringify(payload),
+                success: function() { afterSave(taskId); },
+                error: function(xhr) { alert(xhr.responseJSON?.error || 'Failed to update'); },
+                complete: function() { $btn.prop('disabled', false).text(origText); }
+            });
+        } else {
+            $.ajax({ url: `${API}/tasks`, method: 'POST',
+                contentType: 'application/json', data: JSON.stringify(payload),
+                success: function(resp) { afterSave(resp && resp.task ? String(resp.task.id) : null); },
+                error: function(xhr) { alert(xhr.responseJSON?.error || 'Failed to create'); },
+                complete: function() { $btn.prop('disabled', false).text(origText); }
+            });
+        }
+    }
+
+    // ── Enhance with AI ─────────────────────────────────────────────────────
+
+    function enhanceDescription() {
+        const desc = $('#task-desc').val().trim();
+        if (!desc) {
+            alert('Please enter a description first.');
+            return;
+        }
+        const $btn = $('#enhance-btn');
+        $btn.find('.enhance-icon').addClass('hidden');
+        $btn.find('.enhance-label').text('Enhancing...');
+        $btn.find('.enhance-spinner').removeClass('hidden');
+        $btn.prop('disabled', true);
+
+        $.ajax({
+            url: `${API}/enhance`,
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                title: $('#task-title').val().trim(),
+                description: desc,
+            }),
+            success: function(data) {
+                if (data.title) $('#task-title').val(data.title);
+                if (data.description) {
+                    $('#task-desc').val(data.description);
+                    autoGrowTextarea(document.getElementById('task-desc'));
+                }
+            },
+            error: function(xhr) {
+                alert(xhr.responseJSON?.error || 'Enhance failed');
+            },
+            complete: function() {
+                $btn.find('.enhance-icon').removeClass('hidden');
+                $btn.find('.enhance-label').text('Enhance');
+                $btn.find('.enhance-spinner').addClass('hidden');
+                $btn.prop('disabled', false);
+            },
+        });
+    }
+
+    // ── Detail Modal ──────────────────────────────────────────────────────────
+
+    function decodeHtmlEntities(str) {
+        const txt = document.createElement('textarea');
+        txt.innerHTML = str;
+        return txt.value;
+    }
+
+    function openDetailModal(taskId) {
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) return;
+        currentDetailId = taskId;
+
+        $('#detail-title').text(`#${task.id} • ${decodeHtmlEntities(task.title)}`);
+        $('#detail-desc').html(renderMarkdown(task.description) || '—');
+        $('#detail-status').text(task.status);
+        $('#detail-priority').text(task.priority || 'low');
+        $('#detail-assignee').html(renderAssigneeWithAvatar(task.assignee));
+        if (task.assignee === SUPER_AGENT_ID) {
+            $('#detail-assignee').addClass('text-red-500 font-semibold').removeClass('text-gray-600');
+        } else {
+            $('#detail-assignee').removeClass('text-red-500 font-semibold').addClass('text-gray-600');
+        }
+        $('#detail-created').text(fmt(task.created_at));
+        $('#detail-updated').text(fmt(task.updated_at));
+        $('#detail-durasi').text(fmtDuration(task));
+
+        // Dependencies
+        if (task.deps && task.deps.length > 0) {
+            const depLabels = task.deps.map(depId => {
+                const depTask = tasks.find(t => t.id === depId);
+                const done = depTask && depTask.status === 'done';
+                const label = depTask ? `#${depId} ${esc(depTask.title)}` : `#${depId}`;
+                const cls = done ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400';
+                const icon = done ? '✓' : '⏳';
+                return `<span class="${cls}">${icon} ${label}</span>`;
+            });
+            $('#detail-deps').html(depLabels.join('<br>'));
+            $('#detail-deps-section').removeClass('hidden');
+        } else {
+            $('#detail-deps-section').addClass('hidden');
+        }
+
+        // Attachments
+        _refreshDetailAttachments();
+
+        switchTab('details');
+        $('#kb-detail-modal').removeClass('hidden').addClass('flex');
+
+        loadActivity(taskId);
+        loadComments(taskId);
+        loadProcess(taskId);
+    }
+
+    function closeDetailModal() {
+        $('#kb-detail-modal').removeClass('flex').addClass('hidden');
+        currentDetailId = null;
+    }
+
+    function switchTab(tab) {
+        $('.kb-tab').each(function() {
+            const active = $(this).data('tab') === tab;
+            $(this).toggleClass('text-indigo-600 border-indigo-500', active);
+            $(this).toggleClass('text-gray-500 border-transparent', !active);
+        });
+        $('.kb-panel').addClass('hidden');
+        $(`#panel-${tab}`).removeClass('hidden');
+    }
+
+    function loadActivity(taskId) {
+        $('#activity-list').html('<div class="text-sm text-gray-400 text-center py-8">Loading...</div>');
+        $.get(`${API}/tasks/${taskId}/activity`, function(data) {
+            const items = data.activity || [];
+            if (!items.length) {
+                $('#activity-list').html('<div class="text-sm text-gray-400 text-center py-8">No activity yet</div>');
+                return;
+            }
+            function getDotColor(action, details) {
+                if (action === 'status_changed' && details) {
+                    const parts = details.split(' → ');
+                    const toStatus = parts[1]?.trim();
+                    if (toStatus === 'done') return 'bg-green-500';
+                    if (toStatus === 'in-progress') return 'bg-blue-400';
+                }
+                return ACTION_DOT[action] || 'bg-gray-400';
+            }
+            const html = items.map((item, i) => {
+                const dot = getDotColor(item.action, item.details);
+                const isLast = i === items.length - 1;
+                return `
+                <div class="flex gap-3 pb-3 relative ml-2 pl-0 ${isLast ? '' : 'border-l-2 border-gray-100'}">
+                    <div class="w-4 h-4 rounded-full ${dot} flex-shrink-0 mt-0.5 ring-2 ring-white shadow-sm -ml-2" style="position:relative;left:0"></div>
+                    <div class="flex-1 pb-0">
+                        <div class="text-sm font-medium text-gray-700 dark:text-gray-200 capitalize">${esc(item.action.replace('_', ' '))}</div>
+                        ${item.details ? `<div class="text-xs text-gray-500 dark:text-gray-400">${esc(item.details)}</div>` : ''}
+                        <div class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">${fmtShort(item.created_at)}</div>
+                    </div>
+                </div>`;
+            }).join('');
+            $('#activity-list').html(html);
+        }).fail(function() {
+            $('#activity-list').html('<div class="text-sm text-red-400 text-center py-4">Failed to load activity</div>');
+        });
+    }
+
+    function renderCommentAttachments(attachments) {
+        if (!attachments || !attachments.length) return '';
+        return `<div class="mt-2 flex flex-wrap gap-2">${attachments.map(a => `
+            <a href="${esc(a.url)}" target="_blank" rel="noopener" download="${esc(a.filename)}"
+                class="block max-w-full border border-gray-200 dark:border-gray-600 rounded overflow-hidden hover:border-indigo-400" title="Open or download ${esc(a.filename)}">
+                <img src="${esc(a.url)}" alt="${esc(a.filename)}" class="w-32 h-20 object-cover bg-gray-100 dark:bg-gray-800" loading="lazy" onerror="this.remove()">
+                <span class="block max-w-32 px-2 py-1 text-xs text-gray-600 dark:text-gray-300 truncate">${esc(a.filename)}</span>
+            </a>`).join('')}</div>`;
+    }
+
+    function renderCommentCard(c, taskId) {
+        return `<div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 group relative">
+            <button class="absolute top-2 right-2 text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity" title="Delete comment" onclick="deleteComment(${c.id}, ${taskId})">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>
+            <div class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 mb-1 pr-5">${esc(c.author || 'Anonymous')}</div>
+            ${c.content ? `<div class="text-sm text-gray-700 dark:text-gray-300 break-words kb-markdown">${DOMPurify.sanitize(marked.parse(c.content))}</div>` : ''}
+            ${renderCommentAttachments(c.attachments)}
+            <div class="text-xs text-gray-400 dark:text-gray-500 mt-1.5">${fmtShort(c.created_at)}</div>
+        </div>`;
+    }
+
+    function loadComments(taskId) {
+        $('#comment-list').html('<div class="text-sm text-gray-400 text-center py-4">Loading...</div>');
+        $.get(`${API}/tasks/${taskId}/comments`, function(data) {
+            const items = data.comments || [];
+            $('#comment-count').toggleClass('hidden', !items.length).text(items.length ? `(${items.length})` : '');
+            $('#comment-list').html(items.length ? items.map(c => renderCommentCard(c, taskId)).join('') : '<div class="text-sm text-gray-400 text-center py-4">No comments yet</div>');
+        }).fail(function() {
+            $('#comment-list').html('<div class="text-sm text-red-400 text-center py-4">Failed to load comments</div>');
+        });
+    }
+
+    function loadProcess(taskId) {
+        $('#process-list').html('<div class="text-sm text-gray-400 text-center py-4">Loading...</div>');
+        $.get(`${API}/tasks/${taskId}/process`, function(data) {
+            if (!data.enabled) {
+                $('#process-list').html(`
+                    <div class="text-center py-8">
+                        <div class="text-gray-400 dark:text-gray-500 mb-2">⚙️ Process Recorder is disabled</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400">${esc(data.message)}</div>
+                        <a href="${esc(data.settings_url)}" class="inline-block mt-3 text-sm text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">→ Open Plugin Settings</a>
+                    </div>`);
+                return;
+            }
+            const messages = data.messages;
+            if (!messages || !messages.length) {
+                $('#process-list').html('<div class="text-sm text-gray-400 text-center py-8">No process log available for this task</div>');
+                return;
+            }
+            const ROLE_ICONS = {
+                'user': '👤',
+                'assistant': '🤖',
+                'tool': '🔧',
+                'system': '⚙️',
+            };
+            const ROLE_COLORS = {
+                'user': 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',
+                'assistant': 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800',
+                'tool': 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800',
+                'system': 'bg-gray-50 dark:bg-gray-700/30 border-gray-200 dark:border-gray-600',
+            };
+            const html = messages.map((m, i) => {
+                const role = m.role || 'unknown';
+                const icon = ROLE_ICONS[role] || '📄';
+                const color = ROLE_COLORS[role] || 'bg-gray-50 dark:bg-gray-700/30 border-gray-200';
+                const content = m.content || '';
+                const isTool = role === 'tool';
+                const isAssistant = role === 'assistant';
+                const isCollapsible = isTool || (isAssistant && content.length > 200);
+                const shortContent = content.length > 300 ? content.substring(0, 300) + '...' : content;
+                const msgId = `proc-msg-${taskId}-${i}`;
+                let bodyHtml = '';
+                if (isCollapsible) {
+                    bodyHtml = `
+                        <div class="text-xs text-gray-500 dark:text-gray-400 mb-1 cursor-pointer hover:text-gray-700 dark:hover:text-gray-300" onclick="$('#${msgId}-body').toggle();$(this).find('.expand-arrow').toggleClass('rotate-90')">
+                            <span class="expand-arrow inline-block transition-transform mr-1">▶</span>
+                            <span class="font-mono">${esc((m.name || role).substring(0, 40))}</span>
+                            <span class="text-gray-400 ml-2">${content.length} chars</span>
+                        </div>
+                        <div id="${msgId}-body" class="hidden">
+                            <div class="text-xs font-mono whitespace-pre-wrap break-all text-gray-600 dark:text-gray-300 max-h-96 overflow-y-auto bg-gray-100 dark:bg-gray-800 rounded p-2">${esc(content)}</div>
+                        </div>`;
+                } else {
+                    bodyHtml = `<div class="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words">${esc(shortContent)}</div>`;
+                    if (isAssistant && content.length > 200) {
+                        bodyHtml += `<button class="text-xs text-indigo-500 mt-1 hover:underline" onclick="$(this).prev().text(esc(\`${esc(content)}\`));$(this).remove()">Show more</button>`;
+                    }
+                }
+                return `
+                    <div class="rounded-lg border p-3 ${color}">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-xs">${icon}</span>
+                            <span class="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">${esc(role)}</span>
+                            ${m.name ? `<span class="text-xs text-amber-600 dark:text-amber-400 font-mono">${esc(m.name)}</span>` : ''}
+                        </div>
+                        ${bodyHtml}
+                    </div>`;
+            }).join('');
+            $('#process-list').html(html);
+        }).fail(function() {
+            $('#process-list').html('<div class="text-sm text-red-400 text-center py-4">Failed to load process log</div>');
+        });
+    }
+
+    function submitComment() {
+        if (!currentDetailId) return;
+        const content = $('#comment-input').val().trim();
+        const files = Array.from($('#comment-files')[0].files || []);
+        if (!content && !files.length) return;
+        const $btn = $('#comment-submit-btn');
+        const $spinner = $('#comment-spinner');
+        const $btnText = $('#comment-btn-text');
+        const formData = new FormData();
+        formData.append('content', content);
+        files.forEach(file => formData.append('files', file));
+        $btn.prop('disabled', true);
+        $spinner.removeClass('hidden');
+        $btnText.text('Posting...');
+        $.ajax({
+            url: `${API}/tasks/${currentDetailId}/comments`,
+            method: 'POST',
+            data: formData,
+            contentType: false,
+            processData: false,
+            success: function(data) {
+                $('#comment-input').val('');
+                $('#comment-files').val('');
+                $('#comment-files-list').empty();
+                const c = data.comment;
+                if (c) {
+                    const $list = $('#comment-list');
+                    $list.children('.text-sm.text-center.py-4').remove();
+                    $list.append(renderCommentCard(c, currentDetailId));
+                    const $count = $('#comment-count');
+                    const current = parseInt($count.text().replace(/[()]/g, '')) || 0;
+                    $count.text(`(${current + 1})`).removeClass('hidden');
+                }
+                loadActivity(currentDetailId);
+            },
+            error: function(xhr) { alert(xhr.responseJSON?.error || 'Failed to post comment'); },
+            complete: function() {
+                $btn.prop('disabled', false);
+                $spinner.addClass('hidden');
+                $btnText.text('Post Comment');
+            }
+        });
+    }
+
+    function deleteComment(commentId, taskId) {
+        if (!confirm('Delete this comment?')) return;
+        $.ajax({
+            url: `${API}/comments/${commentId}`,
+            method: 'DELETE',
+            success: function() {
+                loadComments(taskId);
+                loadActivity(taskId);
+            },
+            error: function(xhr) {
+                alert(xhr.responseJSON?.error || 'Failed to delete comment');
+            }
+        });
+    }
+
+    // ── Cmd+Enter / Ctrl+Enter to submit comment ──────────────────────────────────────────────
+
+    $(document).on('keydown', '#comment-input', function(e) {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+            e.preventDefault();
+            submitComment();
+        }
+    });
+
+    // ── Edit from Detail Modal ─────────────────────────────────────────────────────────────────
+
+    function openEditFromDetail() {
+        const task = tasks.find(t => t.id === currentDetailId);
+        if (!task) return;
+
+        $('#detail-task-id').val(task.id);
+        $('#detail-task-title').val(decodeHtmlEntities(task.title));
+        $('#detail-task-desc').val(task.description || '');
+        setTimeout(function() { autoGrowTextarea(document.getElementById('detail-task-desc')); }, 0);
+        $('#detail-task-priority').val(task.priority || 'low');
+        populateAgentSelect('#detail-task-assignee', task.assignee || '');
+        initDepsWidget(task.id, task.deps || [], {
+            searchId: 'detail-deps-search',
+            dropdownId: 'detail-deps-dropdown',
+            selectedId: 'detail-deps-selected',
+        });
+
+        // Attachments: show existing ones and reset the "add new" picker
+        renderDetailExistingAttachments(task);
+        _clearPendingFiles(_pendingDetailFiles);
+        $('#detail-task-files-list').empty();
+        $('#detail-task-files-error').addClass('hidden').text('');
+        $('#detail-task-files').val('');
+
+        $('#panel-details').addClass('hidden');
+        $('#panel-edit').removeClass('hidden');
+    }
+
+    function saveFromDetail(e) {
+        e.preventDefault();
+        const taskId = $('#detail-task-id').val();
+        if (!taskId) return;
+
+        const payload = {
+            title: $('#detail-task-title').val().trim(),
+            description: $('#detail-task-desc').val().trim(),
+            priority: $('#detail-task-priority').val(),
+            assignee: $('#detail-task-assignee').val().trim() || null,
+            deps: _depsGetSelectedIds(),
+        };
+        if (!payload.title) return;
+
+        $.ajax({
+            url: `${API}/tasks/${taskId}`,
+            method: 'PUT',
+            contentType: 'application/json',
+            data: JSON.stringify(payload),
+            success: function() {
+                const taskIdNum = Number(taskId);
+                const newFiles = _pendingDetailFiles.slice();
+                _clearPendingFiles(_pendingDetailFiles);
+                uploadAttachments(String(taskIdNum), newFiles, function(errors) {
+                    if (errors && errors.length) {
+                        alert('Task updated, but some attachments failed:\n' + errors.join('\n'));
+                    }
+                    $('#panel-edit').addClass('hidden');
+                    $('#panel-details').removeClass('hidden');
+                    loadTasks(function() {
+                        openDetailModal(taskIdNum);
+                    });
+                });
+            },
+            error: function(xhr) { alert(xhr.responseJSON?.error || 'Failed to update'); }
+        });
+    }
+
+    function cancelEditFromDetail() {
+        $('#panel-edit').addClass('hidden');
+        $('#panel-details').removeClass('hidden');
+    }
+
+    // ── Assign Agents Modal ───────────────────────────────────────────────────
+
+    let _assignProposals = [];
+    let _assignAgents = [];
+
+    function openAssignModal() {
+        $('#kb-assign-modal').removeClass('hidden').addClass('flex');
+        $('#assign-loading').show();
+        $('#assign-table, #assign-actions, #assign-empty, #assign-no-agents').addClass('hidden');
+
+        $.get('/api/kanban/agent/propose', function(data) {
+            $('#assign-loading').hide();
+            _assignProposals = data.proposals || [];
+            _assignAgents = data.eligible_agents || [];
+
+            if (!_assignAgents.length) {
+                $('#assign-no-agents').removeClass('hidden');
+                return;
+            }
+            if (!_assignProposals.length) {
+                $('#assign-empty').removeClass('hidden');
+                return;
+            }
+
+            const rows = _assignProposals.map(function(p, i) {
+                const options = '<option value="">Select agent...</option>' + _assignAgents.map(function(a) {
+                    return `<option value="${esc(a)}">${esc(a)}</option>`;
+                }).join('');
+                const pBadge = { high: 'bg-red-100 text-red-600', medium: 'bg-yellow-100 text-yellow-700', low: 'bg-green-100 text-green-700' }[p.priority] || 'bg-yellow-100 text-yellow-700';
+                return `<tr class="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-white/10">
+                    <td class="py-2.5 px-2">
+                        <span class="text-gray-400 dark:text-gray-500 text-xs">#${p.task_id}</span>
+                        <span class="ml-1 text-gray-800 dark:text-gray-100">${esc(p.title)}</span>
+                        <span class="ml-1.5 text-xs font-semibold uppercase rounded px-1.5 py-0.5 ${pBadge}">${esc(p.priority)}</span>
+                    </td>
+                    <td class="py-2.5 px-2">
+                        <select class="assign-agent-select w-full border border-gray-200 dark:border-gray-600 rounded px-2 py-1 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-500" data-index="${i}">${options}</select>
+                    </td>
+                </tr>`;
+            }).join('');
+
+            $('#assign-tbody').html(rows);
+            $('#assign-table, #assign-actions').removeClass('hidden');
+        }).fail(function() {
+            $('#assign-loading').hide();
+            alert('Failed to load assignment proposal');
+            closeAssignModal();
+        });
+    }
+
+    function closeAssignModal() {
+        $('#kb-assign-modal').removeClass('flex').addClass('hidden');
+    }
+
+    // ── Trigger Agents ────────────────────────────────────────────────────────
+
+    function triggerAgents() {
+        const $btn = $('#trigger-btn');
+        $btn.prop('disabled', true);
+        $.post('/api/kanban/agent/check', function(resp) {
+            setTimeout(loadTasks, 800);
+            if (!resp.details || resp.details.length === 0) {
+                toast.show('No eligible tasks to trigger', 'info');
+                return;
+            }
+            const notified = resp.details.filter(function(d) { return d.success; });
+            const failed = resp.details.filter(function(d) { return !d.success; });
+
+            const reasonLabels = {
+                'busy': 'busy with another task',
+                'no_skill': 'missing kanban skill',
+                'no_session': 'no active session',
+                'deduplicated': 'duplicate (already notified)',
+                'no_assignee': 'no assignee set',
+                'not_eligible': 'not in eligible agents list',
+                'delayed': 'still within delay window',
+            };
+
+            let html = '<div class="space-y-3">';
+
+            if (notified.length > 0) {
+                html += '<div>';
+                html += '<div class="flex items-center gap-2 mb-2"><span class="inline-block w-2 h-2 rounded-full bg-green-500"></span><span class="font-semibold text-green-700 dark:text-green-400">Notified (' + notified.length + ')</span></div>';
+                html += '<ul class="space-y-1 pl-4">';
+                notified.forEach(function(d) {
+                    html += '<li class="flex items-center gap-2 text-gray-700 dark:text-gray-300">';
+                    html += '<svg class="w-3.5 h-3.5 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>';
+                    html += '<span>#' + d.task_id + ' &rarr; ' + esc(d.agent_id) + '</span>';
+                    html += '</li>';
+                });
+                html += '</ul>';
+                html += '</div>';
+            }
+
+            if (failed.length > 0) {
+                html += '<div>';
+                html += '<div class="flex items-center gap-2 mb-2"><span class="inline-block w-2 h-2 rounded-full bg-yellow-500"></span><span class="font-semibold text-yellow-700 dark:text-yellow-400">Skipped (' + failed.length + ')</span></div>';
+                html += '<ul class="space-y-1 pl-4">';
+                failed.forEach(function(d) {
+                    var reason = reasonLabels[d.reason] || d.reason;
+                    var agentLabel = d.agent_id ? esc(d.agent_id) : 'unassigned';
+                    html += '<li class="flex items-start gap-2 text-gray-700 dark:text-gray-300">';
+                    html += '<svg class="w-3.5 h-3.5 text-yellow-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>';
+                    html += '<span>#' + d.task_id + ' (' + agentLabel + ') &mdash; ' + reason + '</span>';
+                    html += '</li>';
+                });
+                html += '</ul>';
+                html += '</div>';
+            }
+
+            html += '</div>';
+
+            $('#trigger-results-body').html(html);
+            $('#kb-trigger-results-modal').removeClass('hidden').addClass('flex');
+        }).fail(function() {
+            toast.show('Failed to trigger agents', 'error');
+        }).always(function() {
+            setTimeout(function() { $btn.prop('disabled', false); }, 2000);
+        });
+    }
+
+    function closeTriggerResultsModal() {
+        $('#kb-trigger-results-modal').removeClass('flex').addClass('hidden');
+    }
+
+    // ─── Trigger Per-Task ───
+
+    let _triggerTaskId = null;
+    let _triggerAgent = null;
+    let _triggerAgents = [];
+
+    function handleTrigger(taskId, hasAssignee, event) {
+        if (hasAssignee) {
+            // Already has assignee, trigger directly
+            triggerTask(taskId, null, event);
+        } else {
+            // No assignee, show modal to select agent
+            _triggerTaskId = taskId;
+            _triggerAgent = null;
+            openTriggerModal();
+        }
+    }
+
+    function openTriggerModal() {
+        const $search = $('#trigger-agent-search');
+        $('#kb-trigger-modal').removeClass('hidden').addClass('flex');
+        $('#trigger-loading').show();
+        $search.val('');
+        $('#trigger-agent-search-wrap, #trigger-agent-list, #trigger-actions, #trigger-no-agents, #trigger-no-results').addClass('hidden');
+
+        // Always fetch eligible agents (separate from main agent cache)
+        $.get('/api/kanban/eligible-agents', function(data) {
+            _triggerAgents = (data.agents || []).map(a => ({id: a.id, name: a.name || a.id, avatar_path: a.avatar_path}));
+            _renderTriggerAgents();
+            if (_triggerAgents.length && !$('#kb-trigger-modal').hasClass('hidden')) {
+                $search.trigger('focus');
+            }
+        }).fail(function() {
+            _triggerAgents = [];
+            _renderTriggerAgents();
+        });
+    }
+
+    function _renderTriggerAgents(query) {
+        const normalizedQuery = String(query || '').trim().toLocaleLowerCase();
+        const filteredAgents = (_triggerAgents || []).filter(function(agent) {
+            return !normalizedQuery || `${agent.name} ${agent.id}`.toLocaleLowerCase().includes(normalizedQuery);
+        });
+
+        $('#trigger-loading').hide();
+        $('#trigger-no-agents, #trigger-no-results').addClass('hidden');
+        if (!_triggerAgents || !_triggerAgents.length) {
+            $('#trigger-agent-list, #trigger-agent-search-wrap, #trigger-actions').addClass('hidden');
+            $('#trigger-no-agents').removeClass('hidden');
+            return;
+        }
+
+        const html = filteredAgents.map(function(agent) {
+            const initials = esc(agent.name).split(/[\s._-]+/).filter(Boolean).map(s => s[0].toUpperCase()).slice(0, 2).join('');
+            const hasAvatar = !!(agent.avatar_path);
+            const avatarHtml = hasAvatar
+                ? `<img src="/api/agents/${esc(agent.id)}/avatar" alt="${esc(agent.name)}" class="w-12 h-12 rounded-full object-cover bg-indigo-50 dark:bg-indigo-900/20" onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.style.display='inline-flex'"><span class="hidden items-center justify-center w-12 h-12 rounded-full text-sm font-semibold bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300">${initials}</span>`
+                : `<span class="inline-flex items-center justify-center w-12 h-12 rounded-full text-sm font-semibold bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300">${initials}</span>`;
+            return `<button type="button" data-agent-id="${esc(agent.id)}" class="trigger-agent-option flex flex-col items-center gap-2 p-3 rounded-lg border border-gray-200 dark:border-gray-600 dark:bg-gray-700 hover:bg-orange-50 hover:border-orange-200 dark:hover:bg-gray-600 dark:hover:border-orange-400 transition ${_triggerAgent === agent.id ? 'bg-orange-100 border-orange-400 dark:bg-orange-900 dark:border-orange-400' : ''}">${avatarHtml}<span class="text-xs text-gray-700 dark:text-gray-200 font-medium break-words text-center leading-tight">${esc(agent.name)}</span></button>`;
+        }).join('');
+
+        $('#trigger-agent-list').html(html).toggleClass('hidden', !filteredAgents.length);
+        $('#trigger-no-results').toggleClass('hidden', !!filteredAgents.length);
+        $('#trigger-agent-search-wrap, #trigger-actions').removeClass('hidden');
+    }
+
+    function selectTriggerAgent(agentId) {
+        _triggerAgent = agentId;
+        $('#trigger-agent-list button').each(function() {
+            const $btn = $(this);
+            if ($btn.attr('data-agent-id') === agentId) {
+                $btn.addClass('bg-orange-100 border-orange-400 dark:bg-orange-900 dark:border-orange-400');
+            } else {
+                $btn.removeClass('bg-orange-100 border-orange-400 dark:bg-orange-900 dark:border-orange-400');
+            }
+        });
+        // Auto-select: immediately trigger and close modal
+        confirmTrigger();
+    }
+
+    $('#trigger-agent-search').on('input', function() {
+        _renderTriggerAgents(this.value);
+    });
+
+    $('#trigger-agent-list').on('click', '.trigger-agent-option', function() {
+        selectTriggerAgent($(this).attr('data-agent-id'));
+    });
+
+    function closeTriggerModal() {
+        $('#kb-trigger-modal').removeClass('flex').addClass('hidden');
+        $('#trigger-agent-search').val('');
+        $('#trigger-no-results').addClass('hidden');
+        _triggerTaskId = null;
+        _triggerAgent = null;
+    }
+
+    function confirmTrigger() {
+        if (!_triggerAgent) {
+            alert('Please select an agent');
+            return;
+        }
+        triggerTask(_triggerTaskId, _triggerAgent);
+        closeTriggerModal();
+    }
+
+    function triggerTask(taskId, agentId, event) {
+        // Show loading state on rocket button (if triggered from task card)
+        let $btn = null;
+        let origText = null;
+
+        if (event && event.target) {
+            $btn = $(event.target);
+            origText = $btn.text();
+            $btn.html('<svg class="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>').prop('disabled', true);
+        }
+
+        $.ajax({
+            url: `${API}/tasks/${taskId}/trigger`,
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ agent_id: agentId }),
+            success: function(res) {
+                toast.show('Agent triggered successfully', 'success', 3000);
+                setTimeout(loadTasks, 800);
+            },
+            error: function(xhr) {
+                const errorMsg = xhr.responseJSON?.error || 'Failed to trigger agent. Please try again.';
+                toast.show(errorMsg, 'error', 3000);
+            },
+            complete: function() {
+                if ($btn && $btn.length) {
+                    $btn.text(origText || '🚀').prop('disabled', false);
+                }
+            }
+        });
+    }
+
+    function confirmAssign() {
+        const assignments = [];
+        for (let i = 0; i < _assignProposals.length; i++) {
+            const agentId = $(`.assign-agent-select[data-index="${i}"]`).val();
+            if (!agentId) continue; // skip unselected — partial assignment OK
+            assignments.push({ task_id: _assignProposals[i].task_id, agent_id: agentId });
+        }
+
+        if (assignments.length === 0) {
+            alert('No agents selected for any task.');
+            return;
+        }
+
+        const $btn = $('#assign-confirm-btn');
+        $btn.text('Assigning...').prop('disabled', true);
+
+        $.ajax({
+            url: '/api/kanban/agent/assign',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ assignments: assignments }),
+            success: function() {
+                closeAssignModal();
+                loadTasks();
+            },
+            error: function(xhr) {
+                alert(xhr.responseJSON?.error || 'Failed to assign tasks');
+            },
+            complete: function() {
+                $btn.text('Confirm Assignment').prop('disabled', false);
+            }
+        });
+    }
+
+    function autoAssign() {
+        const $btn = $('#assign-auto-btn');
+        $btn.prop('disabled', true).html(
+            '<svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Thinking...'
+        );
+
+        const tasks = _assignProposals.map(function(p) {
+            return {
+                task_id: p.task_id,
+                title: p.title,
+                description: p.description || '',
+                priority: p.priority,
+            };
+        });
+
+        $.ajax({
+            url: '/api/kanban/agent/auto_assign',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ tasks: tasks }),
+            success: function(data) {
+                const map = data.assignments || {};
+                _assignProposals.forEach(function(p, i) {
+                    const agentId = map[String(p.task_id)];
+                    if (agentId) {
+                        $('.assign-agent-select[data-index="' + i + '"]').val(agentId);
+                    }
+                });
+                toast.show('Auto-assignment applied. Review and confirm.', 'success');
+            },
+            error: function(xhr) {
+                alert(xhr.responseJSON?.error || 'Auto-assign failed');
+            },
+            complete: function() {
+                $btn.prop('disabled', false).html(
+                    '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> Auto'
+                );
+            }
+        });
+    }
+
+    // ── Agent Select Population ──
+
+    let _agentCache = null;
+    let _agentCacheTime = 0;
+
+    function preloadAgentCache(callback) {
+        const now = Date.now();
+        if (_agentCache && (now - _agentCacheTime) < 60000) {
+            if (callback) callback();
+            return;
+        }
+        $.get('/api/kanban/all-agents', function(data) {
+            _agentCache = (data.agents || []).map(a => ({id: a.id, name: a.name || a.id, has_kanban: a.has_kanban, avatar_path: a.avatar_path}));
+            _agentCacheTime = now;
+            if (callback) callback();
+        }).fail(function() {
+            _agentCache = [];
+            _agentCacheTime = now;
+            if (callback) callback();
+        });
+    }
+
+    function populateAgentSelect(selector, selectedValue) {
+        const now = Date.now();
+        if (!_agentCache || (now - _agentCacheTime) > 60000) {
+            $.get('/api/kanban/all-agents', function(data) {
+                _agentCache = (data.agents || []).map(a => ({id: a.id, name: a.name || a.id, has_kanban: a.has_kanban, avatar_path: a.avatar_path}));
+                _agentCacheTime = now;
+                _doPopulateAgentSelect(selector, selectedValue);
+            }).fail(function() {
+                _agentCache = [];
+                _agentCacheTime = now;
+                _doPopulateAgentSelect(selector, selectedValue);
+            });
+        } else {
+            _doPopulateAgentSelect(selector, selectedValue);
+        }
+    }
+
+    function getAgentName(agentId) {
+        if (!agentId || !_agentCache) return agentId || '';
+        const agent = _agentCache.find(a => a.id === agentId);
+        return agent ? agent.name : agentId;
+    }
+
+    function hasAgentAvatar(agentId) {
+        if (!agentId || !_agentCache) return false;
+        const agent = _agentCache.find(a => a.id === agentId);
+        return !!(agent && agent.avatar_path);
+    }
+
+    function showAgentSkillWarning(selectId, warningId) {
+        const agentId = $(selectId).val().trim();
+        if (!agentId) {
+            $(warningId).addClass('hidden');
+            return;
+        }
+        const agent = _agentCache ? _agentCache.find(a => a.id === agentId) : null;
+        if (agent && !agent.has_kanban) {
+            $(warningId).removeClass('hidden');
+        } else {
+            $(warningId).addClass('hidden');
+        }
+    }
+
+    function renderAssigneeWithAvatar(assignee) {
+        if (!assignee) return '—';
+        const agentName = getAgentName(assignee);
+        const initials = esc(assignee).split(/[\s._-]+/).filter(Boolean).map(s => s[0].toUpperCase()).slice(0, 2).join('');
+        const isSuper = assignee === SUPER_AGENT_ID;
+        const hasAvatar = hasAgentAvatar(assignee);
+        const avatarHtml = hasAvatar
+            ? `<div class="relative inline-flex"><img src="/api/agents/${esc(assignee)}/avatar" alt="" class="w-10 h-10 rounded-full object-cover" title="${esc(assignee)}" onerror="this.onerror=null;this.style.display='none';this.nextElementSibling.style.display='inline-flex'"><span class="hidden items-center justify-center w-10 h-10 rounded-full text-xs font-semibold ${isSuper ? 'bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400' : 'bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300'}" title="${esc(assignee)}">${initials}</span></div>`
+            : `<span class="inline-flex items-center justify-center w-10 h-10 rounded-full text-xs font-semibold ${isSuper ? 'bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400' : 'bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300'}" title="${esc(assignee)}">${initials}</span>`;
+        return `<div class="flex flex-col items-start gap-1">
+            ${avatarHtml}
+            <span class="text-xs ${isSuper ? 'text-red-500 dark:text-red-400 font-semibold' : 'text-gray-600 dark:text-gray-400'}">${esc(agentName)}</span>
+        </div>`;
+    }
+
+    function _doPopulateAgentSelect(selector, selectedValue) {
+        const $sel = $(selector);
+        const currentVal = $sel.val();
+        $sel.find('option:not(:first)').remove();
+        (_agentCache || []).forEach(function(agent) {
+            const opt = $('<option>').val(agent.id).text(agent.name);
+            if (agent.id === selectedValue || agent.id === currentVal) {
+                opt.prop('selected', true);
+            }
+            $sel.append(opt);
+        });
+        // Trigger warning visibility after population
+        const warningId = selector === '#task-assignee' ? '#task-assignee-warning' : '#detail-task-assignee-warning';
+        showAgentSkillWarning(selector, warningId);
+    }
+
+        // ── Close on backdrop click ───────────────────────────────────────────────
+
+    // Prevent backdrop-click-close when editing an existing task (accidental outside clicks)
+    $('#kb-modal').on('click', function(e) { if (e.target === this && !_isEditing) closeModal(); });
+    $('#kb-detail-modal').on('click', function(e) { if (e.target === this) closeDetailModal(); });
+    $('#kb-assign-modal').on('click', function(e) { if (e.target === this) closeAssignModal(); });
+    $('#kb-trigger-modal').on('click', function(e) { if (e.target === this) closeTriggerModal(); });
+    $('#kb-trigger-results-modal').on('click', function(e) { if (e.target === this) closeTriggerResultsModal(); });
+
+    // ── Close on Escape key ──────────────────────────────────────────
+    $(document).on('keydown', function(e) {
+        if (e.key === 'Escape') {
+            if (!$('#kb-modal').hasClass('hidden')) closeModal();
+            else if (!$('#kb-detail-modal').hasClass('hidden')) closeDetailModal();
+            else if (!$('#kb-assign-modal').hasClass('hidden')) closeAssignModal();
+            else if (!$('#kb-trigger-modal').hasClass('hidden')) closeTriggerModal();
+            else if (!$('#kb-trigger-results-modal').hasClass('hidden')) closeTriggerResultsModal();
+        }
+    });
+
+    let autoRefreshInterval = null;
+    let isAutoRefreshing = false;
+    let isNotifierPaused = false;
+
+    // Fetch notifier status on load
+    function fetchNotifierStatus() {
+      $.get('/api/kanban/notifier/status', function(data) {
+        isNotifierPaused = data.paused;
+        updateNotifierUI();
+      });
+    }
+
+    function updateNotifierUI() {
+      const $btn = $("#notifier-toggle");
+      const $pause = $btn.find(".notifier-pause-icon");
+      const $play = $("#notifier-play-icon");
+      if (isNotifierPaused) {
+        $btn
+          .removeClass("bg-gray-100 text-gray-700 hover:bg-gray-200")
+          .addClass("bg-red-500 text-white hover:bg-red-600 shadow-md");
+        $btn.attr("title", "Resume agent notifications");
+        $pause.addClass("hidden");
+        $play.removeClass("hidden");
+      } else {
+        $btn
+          .removeClass("bg-red-500 text-white hover:bg-red-600 shadow-md")
+          .addClass("bg-gray-100 text-gray-700 hover:bg-gray-200");
+        $btn.attr("title", "Pause agent notifications");
+        $pause.removeClass("hidden");
+        $play.addClass("hidden");
+      }
+    }
+
+    function toggleNotifier() {
+      isNotifierPaused = !isNotifierPaused;
+      updateNotifierUI();
+      $.ajax({
+        url: '/api/kanban/notifier/toggle',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ paused: isNotifierPaused }),
+      });
+    }
+
+    function toggleAutoRefresh() {
+      isAutoRefreshing = !isAutoRefreshing;
+      const $btn = $("#auto-refresh-toggle");
+      const $icon = $btn.find(".refresh-icon");
+      if (isAutoRefreshing) {
+        loadTasks();
+        autoRefreshInterval = setInterval(loadTasks, 5000);
+        $btn
+          .removeClass("bg-gray-100 text-gray-700 hover:bg-gray-200")
+          .addClass("bg-green-500 text-white hover:bg-green-600 shadow-md");
+        $icon.addClass("animate-spin");
+      } else {
+        clearInterval(autoRefreshInterval);
+        $btn
+          .removeClass("bg-green-500 text-white hover:bg-green-600 shadow-md")
+          .addClass("bg-gray-100 text-gray-700 hover:bg-gray-200");
+        $icon.removeClass("animate-spin");
+      }
+    }
+
+    // ── Auto-grow Textarea ──────────────────────────────────────────────
+
+    const TEXTAREA_MAX_HEIGHT = 300;
+
+    function autoGrowTextarea(el) {
+        el.style.height = 'auto';
+        const scrollH = el.scrollHeight;
+        el.style.height = Math.min(scrollH, TEXTAREA_MAX_HEIGHT) + 'px';
+        // Enable vertical scrollbar only when max height is reached
+        el.style.overflowY = scrollH > TEXTAREA_MAX_HEIGHT ? 'auto' : 'hidden';
+    }
+
+    // Bind to Create/Edit Modal textarea
+    $('#task-desc').on('input', function() {
+        autoGrowTextarea(this);
+    });
+
+    // Bind to Detail Modal edit textarea
+    $('#detail-task-desc').on('input', function() {
+        autoGrowTextarea(this);
+    });
+
+    // ── Agent skill warning on assignee select ──────────────────────────────
+
+    $('#task-assignee').on('change', function() {
+        showAgentSkillWarning('#task-assignee', '#task-assignee-warning');
+    });
+
+    $('#detail-task-assignee').on('change', function() {
+        showAgentSkillWarning('#detail-task-assignee', '#detail-task-assignee-warning');
+    });
+
+    fetchNotifierStatus();
+    preloadAgentCache(function() {
+        loadTasks();
+    });
+</script>
+{% endblock %}

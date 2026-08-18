@@ -1,0 +1,173 @@
+"""
+Authentication Blueprint — admin login with Cloudflare Turnstile captcha.
+"""
+
+import secrets
+import time
+import threading
+from typing import Dict, List
+
+import requests
+from flask import Blueprint, make_response, render_template, request, session, redirect, url_for, jsonify
+import config
+from backend.audit_logger import audit
+
+auth_bp = Blueprint('auth', __name__)
+
+# ---------------------------------------------------------------------------
+# In-memory login rate limiter (per IP, failed attempts only)
+# ---------------------------------------------------------------------------
+_MAX_ATTEMPTS = 5
+_WINDOW_SECONDS = 15 * 60  # 15 minutes
+
+_login_attempts: Dict[str, List[float]] = {}
+_login_attempts_lock = threading.Lock()
+
+
+def _is_rate_limited(ip: str) -> bool:
+    """Return True if the IP has exceeded the failed login attempt limit."""
+    now = time.monotonic()
+    with _login_attempts_lock:
+        # Purge expired entries for this IP
+        timestamps = [t for t in _login_attempts.get(ip, []) if now - t < _WINDOW_SECONDS]
+        _login_attempts[ip] = timestamps
+        return len(timestamps) >= _MAX_ATTEMPTS
+
+
+def _record_failed_attempt(ip: str) -> None:
+    now = time.monotonic()
+    with _login_attempts_lock:
+        _login_attempts.setdefault(ip, []).append(now)
+
+
+def _clear_attempts(ip: str) -> None:
+    with _login_attempts_lock:
+        _login_attempts.pop(ip, None)
+
+
+
+
+def _is_safe_redirect_url(target):
+    """Validate that a redirect target is a safe relative URL.
+
+    Rejects absolute URLs (http://..., https://..., etc.), protocol-relative
+    URLs (//evil.com), and anything else that doesn't start with a single /.
+    This prevents open redirect attacks.
+    """
+    # Reject anything containing :// (catches http://, https://, ftp://, etc.)
+    if '://' in target:
+        return False
+    # Reject protocol-relative URLs (//evil.com)
+    if target.startswith('//'):
+        return False
+    # Must be a relative path starting with /
+    return target.startswith('/')
+
+
+@auth_bp.route('/login', methods=['GET'])
+def login_page():
+    if session.get('authenticated'):
+        next_url = request.args.get('next', '/')
+        next_url = next_url.replace('\r', '').replace('\n', '')
+        if not _is_safe_redirect_url(next_url):
+            next_url = '/'
+        return redirect(next_url)
+    return render_template('login.html',
+                           turnstile_site_key=config.TURNSTILE_SITE_KEY,
+                           error=None)
+
+
+@auth_bp.route('/login', methods=['POST'])
+def login_submit():
+    ip = request.remote_addr or '0.0.0.0'
+
+    email = 'admin'  # admin-only login, no user-specific email
+
+    # Helper to log failures concisely
+    def _audit_fail(reason):
+        audit.log_login(ip=ip, email=email, result='failure', reason=reason)
+
+    if _is_rate_limited(ip):
+        _audit_fail('rate_limited')
+        return render_template('login.html',
+                               turnstile_site_key=config.TURNSTILE_SITE_KEY,
+                               error='Too many login attempts. Please wait 15 minutes.'), 429
+
+    password = request.form.get('password', '')
+    turnstile_token = request.form.get('cf-turnstile-response', '')
+    next_url = request.form.get('next', '/')
+    next_url = next_url.replace('\r', '').replace('\n', '')
+
+    # Verify Turnstile if configured
+    if config.TURNSTILE_SECRET_KEY:
+        try:
+            ts_res = requests.post(
+                'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+                data={
+                    'secret': config.TURNSTILE_SECRET_KEY,
+                    'response': turnstile_token,
+                    'remoteip': request.remote_addr,
+                },
+                timeout=10
+            )
+            ts_data = ts_res.json()
+            if not ts_data.get('success'):
+                _audit_fail('captcha_failed')
+                return render_template('login.html',
+                                       turnstile_site_key=config.TURNSTILE_SITE_KEY,
+                                       error='Captcha verification failed. Please try again.')
+        except Exception:
+            _audit_fail('captcha_error')
+            return render_template('login.html',
+                                   turnstile_site_key=config.TURNSTILE_SITE_KEY,
+                                   error='Captcha verification error. Please try again.')
+
+    if not config.ADMIN_PASSWORD_HASH:
+        _audit_fail('no_admin_configured')
+        return render_template('login.html',
+                               turnstile_site_key=config.TURNSTILE_SITE_KEY,
+                               error='Admin password not configured.')
+
+    from werkzeug.security import check_password_hash
+    if not check_password_hash(config.ADMIN_PASSWORD_HASH, password):
+        _audit_fail('invalid_password')
+        _record_failed_attempt(ip)
+        return render_template('login.html',
+                               turnstile_site_key=config.TURNSTILE_SITE_KEY,
+                               error='Invalid password.')
+
+    _clear_attempts(ip)
+
+    audit.log_login(ip=ip, email=email, result='success')
+    # Regenerate session to prevent session fixation
+    old_session = dict(session)
+    session.clear()
+    session.update(old_session)
+
+    session['authenticated'] = True
+    session.permanent = True  # Persist cookie for 7 days (configured in app.py)
+
+    # Generate CSRF token for double-submit cookie pattern
+    csrf_token = secrets.token_hex(32)
+    session['csrf_token'] = csrf_token
+
+    if not _is_safe_redirect_url(next_url):
+        next_url = '/'
+    response = make_response(redirect(next_url))
+    response.set_cookie(
+        'csrf_token', csrf_token,
+        httponly=False,       # JS must read this cookie
+        samesite='Lax',
+        secure=not config.FORCE_INSECURE_COOKIES,
+        path='/',
+        max_age=604800,       # 7 days, matching session lifetime
+    )
+    return response
+
+
+@auth_bp.route('/logout')
+def logout():
+    session.clear()
+    response = make_response(redirect(url_for('auth.login_page')))
+    response.delete_cookie('csrf_token', path='/')
+    return response

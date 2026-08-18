@@ -1,0 +1,95 @@
+[
+  {
+    "type": "function",
+    "function": {
+      "name": "create_schedule",
+      "description": "Create a new scheduled job. Supports one-shot (date), recurring (interval), and cron triggers. Actions can send a static message, trigger a full LLM session (session_prompt), or emit a system event.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Human-readable name for this schedule (e.g. 'Daily standup reminder', 'Check deploy status')."
+          },
+          "trigger_type": {
+            "type": "string",
+            "enum": [
+              "date",
+              "interval",
+              "cron"
+            ],
+            "description": "Type of trigger. 'date' = one-shot at specific time. 'interval' = recurring every N seconds/minutes/hours. 'cron' = cron-like pattern."
+          },
+          "trigger_config": {
+            "type": "object",
+            "description": "Trigger parameters. For 'date': {\"run_date\": \"2026-06-14T05:40:00\"} — USE LOCAL WIB/UTC+7 TIME DIRECTLY, DO NOT CONVERT TO UTC. Naive ISO 8601 strings are treated as local server time. The response includes 'fires_at' (local) and 'fires_at_utc' fields so you can verify. For 'interval': {\"seconds\": 300} or {\"minutes\": 5} or {\"hours\": 1}. For 'cron': {\"hour\": 9, \"minute\": 0} or {\"day_of_week\": \"mon-fri\", \"hour\": 9}."
+          },
+          "action_type": {
+            "type": "string",
+            "enum": [
+              "static_message",
+              "session_prompt",
+              "emit_event"
+            ],
+            "description": "What to do when the schedule fires. 'static_message' delivers a pre-composed message to the user (simple reminder/nudge). 'session_prompt' sends a prompt through the user's real session, triggering full LLM processing with tool access. 'emit_event' emits a system event."
+          },
+          "action_config": {
+            "type": "object",
+            "description": "Action parameters. For 'static_message': {\"agent_id\": \"...\", \"message\": \"...\"}. For 'session_prompt': {\"agent_id\": \"...\", \"message\": \"...\"}. For 'emit_event': {\"event_name\": \"...\", \"payload\": {...}}. If agent_id is omitted in static_message/session_prompt, defaults to the calling agent."
+          },
+          "max_runs": {
+            "type": "integer",
+            "description": "Maximum number of times this schedule should fire. Omit or null for unlimited. Automatically set to 1 for 'date' triggers."
+          }
+        },
+        "required": [
+          "name",
+          "trigger_type",
+          "trigger_config",
+          "action_type",
+          "action_config"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "cancel_schedule",
+      "description": "Cancel and remove a scheduled job by its ID. You can only cancel schedules you own.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "schedule_id": {
+            "type": "string",
+            "description": "The UUID of the schedule to cancel."
+          }
+        },
+        "required": [
+          "schedule_id"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "list_schedules",
+      "description": "List scheduled jobs. Returns schedules owned by this agent. Super admin can list all schedules including plugin-owned ones.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "include_disabled": {
+            "type": "boolean",
+            "description": "If true, include disabled/completed schedules. Default: false (only active)."
+          },
+          "all": {
+            "type": "boolean",
+            "description": "If true, list all schedules regardless of owner (super admin only)."
+          }
+        },
+        "required": []
+      }
+    }
+  }
+]
