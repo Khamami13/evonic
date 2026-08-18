@@ -1,0 +1,25 @@
+services:
+  evonic:
+    image: ghcr.io/khamami13/evonic:latest
+    container_name: evonic
+    restart: unless-stopped
+    command: ["python", "app.py"]
+
+    ports:
+      - "8080:8080"
+
+    env_file:
+      - .env
+
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "8080"
+      SANDBOX_BACKEND: "docker"
+      SANDBOX_IMAGE: "evonic-sandbox:latest"
+
+    volumes:
+      - ./data:/app/shared
+      - ./workspaces:/workspace
+      - /var/run/docker.sock:/var/run/docker.sock
+
+    working_dir: /app
