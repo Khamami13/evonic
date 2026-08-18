@@ -1,0 +1,75 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+.env
+.venv/
+env/
+.env.local
+.env.*.local
+*.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Secrets / Keys
+*.key
+*.pem
+*.secret
+*.token
+credentials.json
+config.json
+.secrets/
+secrets/
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Docker
+*.log
+docker-compose.override.yml
+.docker/
+
+# Streamlit
+.steamlit/secrets.toml
+.steamlit/config.toml
+
+# Temp
+tmp/
+temp/
+.cache/
